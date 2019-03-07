@@ -40,7 +40,7 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
     let source_port = job.get_integer_parameter("source_port").unwrap_or(21) as u16;
 
     // check if destination directory exists
-    let destination_directory = Path::new(destination_path.as_str()).parent().unwrap();
+    let destination_directory = Path::new(&destination_path).parent().unwrap();
     if !destination_directory.exists() {
       // create new path
       fs::create_dir_all(&destination_path)
@@ -51,11 +51,11 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
     let user = source_username.request_value(&job)?;
     let password = source_password.request_value(&job)?;
     let _downloaded_size = execute_ftp_download(
-      hostname,
+      &hostname,
       source_port,
-      user,
-      password,
-      source_path,
+      &user,
+      &password,
+      &source_path,
       &destination_path,
       ssl_enabled,
     )
@@ -70,11 +70,11 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
     let user = destination_username.request_value(&job)?;
     let password = destination_password.request_value(&job)?;
     let _uploaded_size = execute_ftp_upload(
-      source_path,
-      hostname,
+      &source_path,
+      &hostname,
       destination_port,
-      user,
-      password,
+      &user,
+      &password,
       &destination_path,
       ssl_enabled,
     )
@@ -95,7 +95,7 @@ fn get_credential_parameter_required(
 ) -> Result<Credential, MessageError> {
   job
     .get_credential_parameter(parameter)
-    .ok_or(MessageError::ProcessingError(
+    .ok_or_else(|| MessageError::ProcessingError(
       job.job_id,
       format!("missing {} parameter", parameter.replace("_", " ")),
     ))
@@ -104,22 +104,22 @@ fn get_credential_parameter_required(
 fn get_string_parameter_required(job: &job::Job, parameter: &str) -> Result<String, MessageError> {
   job
     .get_string_parameter(parameter)
-    .ok_or(MessageError::ProcessingError(
+    .ok_or_else(|| MessageError::ProcessingError(
       job.job_id,
       format!("missing {} parameter", parameter.replace("_", " ")),
     ))
 }
 
 fn execute_ftp_download(
-  hostname: String,
+  hostname: &str,
   port: u16,
-  user: String,
-  password: String,
-  source_path: String,
-  destination_path: &String,
+  user: &str,
+  password: &str,
+  source_path: &str,
+  destination_path: &str,
   ssl_enabled: bool,
 ) -> Result<u64, FtpError> {
-  let mut ftp_stream = FtpStream::connect((hostname.as_str(), port))?;
+  let mut ftp_stream = FtpStream::connect((hostname, port))?;
 
   if ssl_enabled {
     let builder = SslContext::builder(SslMethod::tls()).map_err(|_e| {
@@ -129,7 +129,7 @@ fn execute_ftp_download(
     ftp_stream = ftp_stream.into_secure(context)?;
   }
 
-  ftp_stream.login(user.as_str(), password.as_str())?;
+  ftp_stream.login(user, password)?;
   debug!("current directory: {}", ftp_stream.pwd()?);
 
   // We need to enable binary transfer type to ensure the final data size is correct
@@ -137,7 +137,7 @@ fn execute_ftp_download(
 
   debug!("Download remote file: {:?}", source_path);
   debug!("Remote directory content: {:?}", ftp_stream.list(Some("/")));
-  let length = ftp_stream.retr(source_path.as_str(), |stream| {
+  let length = ftp_stream.retr(source_path, |stream| {
     let dest_file = File::create(&destination_path).unwrap();
     let mut file_writer: BufWriter<File> = BufWriter::new(dest_file);
     io::copy(stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))
@@ -148,15 +148,15 @@ fn execute_ftp_download(
 }
 
 fn execute_ftp_upload(
-  source_path: String,
-  hostname: String,
+  source_path: &str,
+  hostname: &str,
   port: u16,
-  user: String,
-  password: String,
-  destination_path: &String,
+  user: &str,
+  password: &str,
+  destination_path: &str,
   ssl_enabled: bool,
 ) -> Result<usize, FtpError> {
-  let mut ftp_stream = FtpStream::connect((hostname.as_str(), port))?;
+  let mut ftp_stream = FtpStream::connect((hostname, port))?;
 
   if ssl_enabled {
     let builder = SslContext::builder(SslMethod::tls()).map_err(|_e| {
@@ -166,7 +166,7 @@ fn execute_ftp_upload(
     ftp_stream = ftp_stream.into_secure(context)?;
   }
 
-  ftp_stream.login(user.as_str(), password.as_str())?;
+  ftp_stream.login(user, password)?;
   debug!("current directory: {}", ftp_stream.pwd()?);
 
   // We need to enable binary transfer type to ensure the final data size is correct
@@ -176,9 +176,9 @@ fn execute_ftp_upload(
   debug!("Upload local file: {:?}", source_path);
   let source_file = File::open(source_path).map_err(|e| FtpError::ConnectionError(e))?;
   let mut reader = BufReader::new(source_file);
-  ftp_stream.put(destination_path.as_str(), &mut reader)?;
+  ftp_stream.put(destination_path, &mut reader)?;
   debug!("Remote directory content: {:?}", ftp_stream.list(Some("/")));
-  let length = ftp_stream.size(destination_path.as_str())?;
+  let length = ftp_stream.size(destination_path)?;
 
   ftp_stream.quit()?;
   Ok(length.unwrap_or(0))
