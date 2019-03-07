@@ -1,11 +1,11 @@
-FROM rust:1.31-stretch as builder
+FROM rust:1.33-stretch as builder
 
 ADD . ./
 
 RUN apt update && \
     apt install -y libssl-dev && \
     cargo build --verbose --release && \
-    cargo install
+    cargo install --root /usr
 
 FROM debian:stretch
 COPY --from=builder /usr/local/cargo/bin/ftp_worker /usr/bin
