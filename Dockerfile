@@ -5,7 +5,7 @@ ADD . ./
 RUN apt update && \
     apt install -y libssl-dev && \
     cargo build --verbose --release && \
-    cargo install --root /usr
+    cargo install --path /usr
 
 FROM debian:stretch
 COPY --from=builder /usr/local/cargo/bin/ftp_worker /usr/bin
