@@ -1,11 +1,13 @@
 [package]
 name = "rs_ftp_worker"
 version = "0.1.0"
-authors = ["Valentin NOEL <valent.noel@gmail.com>"]
+authors = [
+  "Valentin Noel <valentin.noel@media-io.com>",
+  "Marc-Antoine Arnaud <maarnaud@media-io.com>",
+]
 
 [dependencies]
 amqp_worker = "0.4.1"
 ftp = { version = "3.0.1", features = ["secure"] }
-
 log = "0.4.5"
 simple_logger = "1.0.1"
