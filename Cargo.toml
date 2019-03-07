@@ -1,10 +1,11 @@
 [package]
-name = "rs_ftp_worker"
+name = "ftp_worker"
 version = "0.1.0"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
 ]
+version = "2018"
 
 [dependencies]
 amqp_worker = "0.4.1"
