@@ -345,6 +345,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ftp_worker"
+version = "0.1.0"
+dependencies = [
+ "amqp_worker 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ftp 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "simple_logger 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1114,16 +1124,6 @@ dependencies = [
  "tokio-timer 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rs_ftp_worker"
-version = "0.1.0"
-dependencies = [
- "amqp_worker 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ftp 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "simple_logger 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

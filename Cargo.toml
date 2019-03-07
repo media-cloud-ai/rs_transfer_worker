@@ -5,7 +5,7 @@ authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
 ]
-version = "2018"
+edition = "2018"
 
 [dependencies]
 amqp_worker = "0.4.1"
