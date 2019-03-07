@@ -93,21 +93,21 @@ fn get_credential_parameter_required(
   job: &job::Job,
   parameter: &str,
 ) -> Result<Credential, MessageError> {
-  job
-    .get_credential_parameter(parameter)
-    .ok_or_else(|| MessageError::ProcessingError(
+  job.get_credential_parameter(parameter).ok_or_else(|| {
+    MessageError::ProcessingError(
       job.job_id,
       format!("missing {} parameter", parameter.replace("_", " ")),
-    ))
+    )
+  })
 }
 
 fn get_string_parameter_required(job: &job::Job, parameter: &str) -> Result<String, MessageError> {
-  job
-    .get_string_parameter(parameter)
-    .ok_or_else(|| MessageError::ProcessingError(
+  job.get_string_parameter(parameter).ok_or_else(|| {
+    MessageError::ProcessingError(
       job.job_id,
       format!("missing {} parameter", parameter.replace("_", " ")),
-    ))
+    )
+  })
 }
 
 fn execute_ftp_download(
