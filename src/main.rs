@@ -15,19 +15,19 @@ mod message;
 struct FtpEvent {}
 
 impl MessageEvent for FtpEvent {
-    fn process(&self, msg: &str) -> Result<u64, MessageError> {
-        message::process(msg)
-    }
+  fn process(&self, msg: &str) -> Result<u64, MessageError> {
+    message::process(msg)
+  }
 }
 
 static FTP_EVENT: FtpEvent = FtpEvent {};
 
 fn main() {
-    if env::var("VERBOSE").is_ok() {
-        simple_logger::init_with_level(Level::Debug).unwrap();
-    } else {
-        simple_logger::init_with_level(Level::Warn).unwrap();
-    }
+  if env::var("VERBOSE").is_ok() {
+    simple_logger::init_with_level(Level::Debug).unwrap();
+  } else {
+    simple_logger::init_with_level(Level::Warn).unwrap();
+  }
 
-    start_worker(&FTP_EVENT);
+  start_worker(&FTP_EVENT);
 }
