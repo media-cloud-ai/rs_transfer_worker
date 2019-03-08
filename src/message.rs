@@ -41,9 +41,10 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
 
     // check if destination directory exists
     let destination_directory = Path::new(&destination_path).parent().unwrap();
+    print!("{:?}", des);
     if !destination_directory.exists() {
       // create new path
-      fs::create_dir_all(&destination_path)
+      fs::create_dir_all(&destination_directory)
         .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
     }
 
