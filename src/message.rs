@@ -3,21 +3,15 @@ use amqp_worker::*;
 use ftp::openssl::ssl::{SslContext, SslMethod};
 use ftp::types::FileType;
 use ftp::{FtpError, FtpStream};
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::{BufReader, BufWriter};
-use std::io::{Error, ErrorKind};
-use std::path::Path;
+use std::fs::{create_dir_all, File};
+use std::io::{copy, BufReader, BufWriter, Error, ErrorKind};
+use std::path::{Path, PathBuf};
 
 /// Process incoming job message
 pub fn process(message: &str) -> Result<u64, MessageError> {
   let job = job::Job::new(message)?;
-  println!("reveived message: {:?}", job);
-
-  if let Err(message) = job.check_requirements() {
-    return Err(message);
-  }
+  info!("reveived message: {:?}", job);
+  job.check_requirements()?;
 
   let mut source_path = get_string_parameter_required(&job, "source_path")?;
   if let Some(source_prefix) = job.get_string_parameter("source_prefix") {
@@ -43,7 +37,7 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
     let destination_directory = Path::new(&destination_path).parent().unwrap();
     if !destination_directory.exists() {
       // create new path
-      fs::create_dir_all(&destination_directory)
+      create_dir_all(&destination_directory)
         .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
     }
 
@@ -60,6 +54,7 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
       ssl_enabled,
     )
     .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
+    Ok(job.job_id)
   } else if let Some(destination_hostname) = destination_hostname {
     // Upload case
     let destination_username = get_credential_parameter_required(&job, "destination_username")?;
@@ -79,14 +74,13 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
       ssl_enabled,
     )
     .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
+    Ok(job.job_id)
   } else {
-    return Err(MessageError::ProcessingError(
+    Err(MessageError::ProcessingError(
       job.job_id,
       "Invalid job message parameters".to_string(),
-    ));
+    ))
   }
-
-  Ok(job.job_id)
 }
 
 fn get_credential_parameter_required(
@@ -140,7 +134,7 @@ fn execute_ftp_download(
   let length = ftp_stream.retr(source_path, |stream| {
     let dest_file = File::create(&destination_path).unwrap();
     let mut file_writer: BufWriter<File> = BufWriter::new(dest_file);
-    io::copy(stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))
+    copy(stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))
   })?;
 
   ftp_stream.quit()?;
@@ -168,17 +162,41 @@ fn execute_ftp_upload(
 
   ftp_stream.login(user, password)?;
   debug!("current directory: {}", ftp_stream.pwd()?);
-
-  // We need to enable binary transfer type to ensure the final data size is correct
   ftp_stream.transfer_type(FileType::Binary)?;
 
-  // Upload a file
+  // create destination directories if not exists
+  let destination_directory = Path::new(&destination_path).parent().unwrap();
+  let mut root_dir = PathBuf::from("/");
+  for folder in destination_directory.iter() {
+    if folder == "/" {
+      continue;
+    }
+
+    root_dir = root_dir.join(folder);
+    match ftp_stream.mkdir(root_dir.to_str().unwrap()) {
+      Ok(()) => {}
+      Err(FtpError::InvalidResponse(msg)) => {
+        if msg
+          != format!(
+            "Expected code [257], got response: 550 {}: File exists.\r\n",
+            root_dir.to_str().unwrap()
+          )
+        {
+          return Err(FtpError::InvalidResponse(msg));
+        }
+      }
+      Err(msg) => return Err(msg),
+    }
+  }
+
+  ftp_stream.cwd(root_dir.to_str().unwrap())?;
+  let filename = Path::new(&destination_path).file_name().unwrap();
+
   debug!("Upload local file: {:?}", source_path);
   let source_file = File::open(source_path).map_err(|e| FtpError::ConnectionError(e))?;
   let mut reader = BufReader::new(source_file);
-  ftp_stream.put(destination_path, &mut reader)?;
-  debug!("Remote directory content: {:?}", ftp_stream.list(Some("/")));
-  let length = ftp_stream.size(destination_path)?;
+  ftp_stream.put(filename.to_str().unwrap(), &mut reader)?;
+  let length = ftp_stream.size(filename.to_str().unwrap())?;
 
   ftp_stream.quit()?;
   Ok(length.unwrap_or(0))
