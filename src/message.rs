@@ -18,10 +18,13 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
     source_path = source_prefix + &source_path;
   }
 
-  let mut destination_path = get_string_parameter_required(&job, "destination_path")?;
-  if let Some(destination_prefix) = job.get_string_parameter("destination_prefix") {
-    destination_path = destination_prefix + &destination_path;
-  }
+  let destination_path = get_string_parameter_required(&job, "destination_path")?;
+  let absolute_destination_path =
+    if let Some(destination_prefix) = job.get_string_parameter("destination_prefix") {
+      destination_prefix + &destination_path
+    } else {
+      destination_path.clone()
+    };
 
   let source_hostname = job.get_credential_parameter("source_hostname");
   let destination_hostname = job.get_credential_parameter("destination_hostname");
@@ -33,14 +36,6 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
     let source_password = get_credential_parameter_required(&job, "source_password")?;
     let source_port = job.get_integer_parameter("source_port").unwrap_or(21) as u16;
 
-    // check if destination directory exists
-    let destination_directory = Path::new(&destination_path).parent().unwrap();
-    if !destination_directory.exists() {
-      // create new path
-      create_dir_all(&destination_directory)
-        .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
-    }
-
     let hostname = source_hostname.request_value(&job)?;
     let user = source_username.request_value(&job)?;
     let password = source_password.request_value(&job)?;
@@ -50,7 +45,7 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
       &user,
       &password,
       &source_path,
-      &destination_path,
+      &absolute_destination_path,
       ssl_enabled,
     )
     .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
@@ -70,6 +65,7 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
       destination_port,
       &user,
       &password,
+      job.get_string_parameter("destination_prefix"),
       &destination_path,
       ssl_enabled,
     )
@@ -113,6 +109,16 @@ fn execute_ftp_download(
   destination_path: &str,
   ssl_enabled: bool,
 ) -> Result<u64, FtpError> {
+  // check if destination directory exists
+  let destination_directory = Path::new(&destination_path).parent().unwrap();
+  if !destination_directory.exists() {
+    // create new path
+    create_dir_all(&destination_directory)
+      .map_err(|e|
+        FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string()))
+      )?;
+  }
+
   let mut ftp_stream = FtpStream::connect((hostname, port))?;
 
   if ssl_enabled {
@@ -147,6 +153,7 @@ fn execute_ftp_upload(
   port: u16,
   user: &str,
   password: &str,
+  destination_prefix: Option<String>,
   destination_path: &str,
   ssl_enabled: bool,
 ) -> Result<usize, FtpError> {
@@ -166,7 +173,9 @@ fn execute_ftp_upload(
 
   // create destination directories if not exists
   let destination_directory = Path::new(&destination_path).parent().unwrap();
-  let mut root_dir = PathBuf::from("/");
+
+  let prefix = destination_prefix.unwrap_or("/".to_string());
+  let mut root_dir = PathBuf::from(prefix);
   for folder in destination_directory.iter() {
     if folder == "/" {
       continue;
@@ -182,6 +191,7 @@ fn execute_ftp_upload(
             root_dir.to_str().unwrap()
           )
         {
+
           return Err(FtpError::InvalidResponse(msg));
         }
       }
