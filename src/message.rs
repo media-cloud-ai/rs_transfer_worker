@@ -182,20 +182,9 @@ fn execute_ftp_upload(
     }
 
     root_dir = root_dir.join(folder);
-    match ftp_stream.mkdir(root_dir.to_str().unwrap()) {
-      Ok(()) => {}
-      Err(FtpError::InvalidResponse(msg)) => {
-        if msg
-          != format!(
-            "Expected code [257], got response: 550 {}: File exists.\r\n",
-            root_dir.to_str().unwrap()
-          )
-        {
-
-          return Err(FtpError::InvalidResponse(msg));
-        }
-      }
-      Err(msg) => return Err(msg),
+    let pathname = root_dir.to_str().unwrap();
+    if ftp_stream.cwd(pathname).is_err() {
+      ftp_stream.mkdir(pathname)?;
     }
   }
 
