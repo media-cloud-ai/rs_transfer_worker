@@ -10,6 +10,9 @@ use log::Level;
 use std::env;
 
 mod message;
+mod reader;
+mod target_configuration;
+mod writer;
 
 #[derive(Debug)]
 struct FtpEvent {}
