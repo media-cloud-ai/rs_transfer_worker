@@ -4,6 +4,7 @@ use ftp::FtpError;
 
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind, Read};
+use std::path::Path;
 
 pub struct FileReader {
   target: TargetConfiguration,
@@ -39,7 +40,19 @@ impl FtpReader {
   where
     F: Fn(&mut Read) -> Result<(), FtpError>,
   {
+    let prefix = self
+      .target
+      .prefix
+      .clone()
+      .unwrap_or_else(|| "/".to_string());
+    let absolute_path = prefix + &self.target.path;
+
+    let path = Path::new(&absolute_path);
+    let directory = path.parent().unwrap().to_str().unwrap();
+    let filename = path.file_name().unwrap().to_str().unwrap();
+
     let mut ftp_stream = self.target.get_ftp_stream()?;
-    ftp_stream.retr(&self.target.path, streamer)
+    ftp_stream.cwd(&directory)?;
+    ftp_stream.retr(&filename, streamer)
   }
 }
