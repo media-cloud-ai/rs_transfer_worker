@@ -1,6 +1,7 @@
 use crate::target_configuration::TargetConfiguration;
 
 use ftp::FtpError;
+use std::fs;
 use std::fs::File;
 use std::io::{copy, BufReader, BufWriter, Error, ErrorKind, Read};
 use std::path::{Path, PathBuf};
@@ -22,6 +23,10 @@ impl FileStreamWriter {
 
 impl StreamWriter for FileStreamWriter {
   fn write_stream(&self, reader: &mut Read) -> Result<(), FtpError> {
+    let destination_path = Path::new(self.target.path.as_str());
+    let destination_directory = destination_path.parent().unwrap_or_else(|| Path::new("/"));
+    fs::create_dir_all(destination_directory).map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
+
     let destination_file = File::create(&self.target.path)
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
 
