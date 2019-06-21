@@ -10,5 +10,12 @@ edition = "2018"
 [dependencies]
 amqp_worker = "0.4.3"
 ftp = { version = "3.0.1", features = ["secure"] }
+futures = "0.1.25"
+futures-util = "0.2"
 log = "0.4.5"
+rusoto_core = "0.39.0"
+rusoto_credential = "0.39.0"
+rusoto_s3 = "0.39.0"
 simple_logger = "1.0.1"
+tokio = "0.1"
+tokio-io = "0.1"

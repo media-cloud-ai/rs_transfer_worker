@@ -1,7 +1,7 @@
 use amqp_worker::*;
 
 use crate::reader::*;
-use crate::target_configuration::TargetConfiguration;
+use crate::target_configuration::*;
 use crate::writer::*;
 
 pub fn process(message: &str) -> Result<u64, MessageError> {
@@ -12,30 +12,49 @@ pub fn process(message: &str) -> Result<u64, MessageError> {
 
   let destination_target = TargetConfiguration::new(&job, "destination")?;
 
-  if destination_target.is_ftp_configured() {
-    let writer = FtpStreamWriter::new(destination_target);
-    do_transfer(&job, writer)?;
-  } else {
-    let writer = FileStreamWriter::new(destination_target);
-    do_transfer(&job, writer)?;
-  };
+  match destination_target.get_type() {
+    ConfigurationType::Ftp => {
+      let writer = FtpStreamWriter::new(destination_target);
+      do_transfer(&job, writer)?;
+    }
+    ConfigurationType::LocalFile => {
+      let mut writer = FileStreamWriter::new(destination_target);
+      writer.open()
+        .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))?;
+      do_transfer(&job, writer)?;
+    }
+    _ => {
+      return Err(MessageError::ProcessingError(job.job_id, "Unsupported Writer configuration".to_string()));
+    }
+  }
 
   Ok(job.job_id)
 }
 
-fn do_transfer(job: &job::Job, writer: impl StreamWriter) -> Result<(), MessageError> {
+fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<(), MessageError> {
   let source_target = TargetConfiguration::new(&job, "source")?;
-  if source_target.is_ftp_configured() {
-    let mut ftp_reader = FtpReader::new(source_target.clone());
 
-    ftp_reader
-      .retr(|stream| writer.write_stream(stream))
-      .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))
-  } else {
+  match source_target.get_type() {
+    ConfigurationType::Ftp => {
+      let mut ftp_reader = FtpReader::new(source_target.clone());
+
+      ftp_reader
+        .process_copy(move |stream| writer.write_stream(stream))
+        .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))
+    },
+    ConfigurationType::S3Bucket => {
+      let mut s3_reader = S3Reader::new(source_target.clone());
+
+      s3_reader
+        .process_copy(move |stream| writer.write_stream(stream))
+        .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))
+    },
+    ConfigurationType::LocalFile => {
     let mut file_reader = FileReader::new(source_target.clone());
 
     file_reader
-      .retr(|stream| writer.write_stream(stream))
+      .process_copy(move |stream| writer.write_stream(stream))
       .map_err(|e| MessageError::ProcessingError(job.job_id, e.to_string()))
+    },
   }
 }

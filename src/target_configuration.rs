@@ -6,8 +6,24 @@ use ftp::types::FileType;
 use ftp::FtpError;
 use ftp::FtpStream;
 
+use rusoto_core::request::HttpClient;
+use rusoto_core::region::Region;
+use rusoto_credential::StaticProvider;
+use rusoto_s3::{
+  GetObjectRequest,
+  S3Client,
+  S3,
+};
+
 use std::io::{Error, ErrorKind};
 use std::str::FromStr;
+
+#[derive(Debug)]
+pub enum ConfigurationType {
+  LocalFile,
+  Ftp,
+  S3Bucket
+}
 
 #[derive(Debug, Clone)]
 pub struct TargetConfiguration {
@@ -15,6 +31,9 @@ pub struct TargetConfiguration {
   port: u16,
   username: Option<String>,
   password: Option<String>,
+  access_key: Option<String>,
+  secret_key: Option<String>,
+  region: Region,
   pub prefix: Option<String>,
   pub path: String,
   ssl_enabled: bool,
@@ -38,6 +57,21 @@ impl TargetConfiguration {
       .get_credential_parameter(&format!("{}_username", target))
       .map(|key| key.request_value(&job))
       .map_or(Ok(None), |r| r.map(Some))?;
+
+    let access_key = job
+      .get_credential_parameter(&format!("{}_access_key", target))
+      .map(|key| key.request_value(&job))
+      .map_or(Ok(None), |r| r.map(Some))?;
+
+    let secret_key = job
+      .get_credential_parameter(&format!("{}_secret_key", target))
+      .map(|key| key.request_value(&job))
+      .map_or(Ok(None), |r| r.map(Some))?;
+
+    let region = job
+      .get_credential_parameter(&format!("{}_region", target))
+      .map(|key| key.request_value(&job))
+      .map_or(Ok(Region::default()), |r| Region::from_str(&r.unwrap()).map_err(|e| MessageError::ProcessingError(job.job_id, format!("unable to match AWS region: {}", e))))?;
 
     let prefix = job
       .get_credential_parameter(&format!("{}_prefix", target))
@@ -76,18 +110,57 @@ impl TargetConfiguration {
     })?;
 
     Ok(TargetConfiguration {
+      access_key,
       hostname,
       password,
       path,
       port,
       prefix,
+      region,
+      secret_key,
       ssl_enabled,
       username,
     })
   }
 
-  pub fn is_ftp_configured(&self) -> bool {
-    self.hostname.is_some()
+  pub fn new_file(path: &str) -> Self {
+    TargetConfiguration {
+      hostname: None,
+      port: 0,
+      username: None,
+      password: None,
+      access_key: None,
+      secret_key: None,
+      region: Region::default(),
+      prefix: None,
+      path: path.to_string(),
+      ssl_enabled: false,
+    }
+  }
+
+  pub fn new_s3(access_key: &str, secret_key: &str, region: Region, prefix: &str, path: &str) -> Self {
+    TargetConfiguration {
+      hostname: None,
+      port: 0,
+      username: None,
+      password: None,
+      access_key: Some(access_key.to_string()),
+      secret_key: Some(secret_key.to_string()),
+      region,
+      prefix: Some(prefix.to_string()),
+      path: path.to_string(),
+      ssl_enabled: false,
+    }
+  }
+
+  pub fn get_type(&self) -> ConfigurationType {
+    if self.hostname.is_some() {
+      return ConfigurationType::Ftp;
+    }
+    if self.secret_key.is_some() {
+      return ConfigurationType::S3Bucket;
+    }
+    ConfigurationType::LocalFile
   }
 
   pub fn get_ftp_stream(&self) -> Result<FtpStream, FtpError> {
@@ -107,5 +180,23 @@ impl TargetConfiguration {
 
     ftp_stream.transfer_type(FileType::Binary)?;
     Ok(ftp_stream)
+  }
+
+  pub fn get_s3_stream(&self) -> Result<rusoto_core::ByteStream, FtpError> {
+    let client = S3Client::new_with(
+      HttpClient::new().expect("Unable to create HTTP client"),
+      StaticProvider::new_minimal(self.access_key.clone().unwrap(), self.secret_key.clone().unwrap()),
+      self.region.clone()
+    );
+
+    let request = GetObjectRequest {
+      bucket: self.prefix.clone().unwrap(),
+      key: self.path.clone(),
+      ..Default::default()
+    };
+
+    let object = client.get_object(request).sync().unwrap();
+    let stream = object.body.unwrap();
+    Ok(stream)
   }
 }

@@ -2,12 +2,12 @@ use crate::target_configuration::TargetConfiguration;
 
 use ftp::FtpError;
 use std::fs;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{copy, BufReader, BufWriter, Error, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
-pub trait StreamWriter: Sized {
-  fn write_stream(&self, reader: &mut Read) -> Result<(), FtpError>;
+pub trait StreamWriter: Sized + Send + Sync {
+  fn write_stream(&self, read_stream: &mut dyn Read) -> Result<(), FtpError>;
 }
 
 #[derive(Debug)]
@@ -19,19 +19,30 @@ impl FileStreamWriter {
   pub fn new(target: TargetConfiguration) -> Self {
     FileStreamWriter { target }
   }
-}
 
-impl StreamWriter for FileStreamWriter {
-  fn write_stream(&self, reader: &mut Read) -> Result<(), FtpError> {
+  pub fn open(&mut self) -> Result<(), FtpError> {
     let destination_path = Path::new(self.target.path.as_str());
     let destination_directory = destination_path.parent().unwrap_or_else(|| Path::new("/"));
     fs::create_dir_all(destination_directory).map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
 
-    let destination_file = File::create(&self.target.path)
+    let _destination_file = File::create(&self.target.path)
+      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
+    Ok(())
+  }
+}
+
+impl StreamWriter for FileStreamWriter {
+  fn write_stream(&self, read_stream: &mut dyn Read) -> Result<(), FtpError> {
+    let destination_file =
+      OpenOptions::new()
+      .write(true)
+      .create(false)
+      .append(true)
+      .open(&self.target.path)
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
 
     let mut file_writer: BufWriter<File> = BufWriter::new(destination_file);
-    copy(reader, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))?;
+    copy(read_stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))?;
     Ok(())
   }
 }
@@ -48,7 +59,7 @@ impl FtpStreamWriter {
 }
 
 impl StreamWriter for FtpStreamWriter {
-  fn write_stream(&self, stream: &mut Read) -> Result<(), FtpError> {
+  fn write_stream(&self, read_stream: &mut dyn Read) -> Result<(), FtpError> {
     let mut ftp_stream = self.target.get_ftp_stream()?;
 
     let destination_path = Path::new(self.target.path.as_str());
@@ -75,7 +86,7 @@ impl StreamWriter for FtpStreamWriter {
     }
     ftp_stream.cwd(root_dir.to_str().unwrap())?;
 
-    let mut reader = BufReader::new(stream);
+    let mut reader = BufReader::new(read_stream);
     ftp_stream.put(filename, &mut reader)?;
     let _length = ftp_stream.size(filename)?;
 

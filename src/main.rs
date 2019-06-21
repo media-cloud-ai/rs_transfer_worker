@@ -1,9 +1,18 @@
+#![feature(async_await)]
+
 extern crate amqp_worker;
 extern crate ftp;
+extern crate futures;
+extern crate futures_util;
 
 #[macro_use]
 extern crate log;
+extern crate rusoto_core;
+extern crate rusoto_credential;
+extern crate rusoto_s3;
 extern crate simple_logger;
+extern crate tokio;
+extern crate tokio_io;
 
 use amqp_worker::*;
 use log::Level;
