@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 extern crate amqp_worker;
 extern crate ftp;
 extern crate futures;
