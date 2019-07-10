@@ -123,6 +123,7 @@ impl TargetConfiguration {
     })
   }
 
+  #[cfg(test)]
   pub fn new_file(path: &str) -> Self {
     TargetConfiguration {
       hostname: None,
@@ -138,6 +139,23 @@ impl TargetConfiguration {
     }
   }
 
+  #[cfg(test)]
+  pub fn new_ftp(hostname: &str, username: &str, password: &str, prefix: &str, path: &str) -> Self {
+    TargetConfiguration {
+      hostname: Some(hostname.to_string()),
+      port: 21,
+      username: Some(username.to_string()),
+      password: Some(password.to_string()),
+      access_key: None,
+      secret_key: None,
+      region: Region::default(),
+      prefix: Some(prefix.to_string()),
+      path: path.to_string(),
+      ssl_enabled: false,
+    }
+  }
+
+  #[cfg(test)]
   pub fn new_s3(access_key: &str, secret_key: &str, region: Region, prefix: &str, path: &str) -> Self {
     TargetConfiguration {
       hostname: None,
