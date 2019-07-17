@@ -25,7 +25,7 @@ mod writer;
 struct FtpEvent {}
 
 impl MessageEvent for FtpEvent {
-  fn process(&self, msg: &str) -> Result<u64, MessageError> {
+  fn process(&self, msg: &str) -> Result<job::JobResult, MessageError> {
     message::process(msg)
   }
 }

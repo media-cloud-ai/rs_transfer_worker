@@ -1,4 +1,4 @@
-use amqp_worker::job::Job;
+use amqp_worker::job::*;
 use amqp_worker::MessageError;
 
 use ftp::openssl::ssl::{SslContext, SslMethod};
@@ -45,33 +45,38 @@ impl TargetConfiguration {
 
     let hostname = job
       .get_credential_parameter(&format!("{}_hostname", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let password = job
       .get_credential_parameter(&format!("{}_password", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let username = job
       .get_credential_parameter(&format!("{}_username", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let access_key = job
       .get_credential_parameter(&format!("{}_access_key", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let secret_key = job
       .get_credential_parameter(&format!("{}_secret_key", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let region = job
       .get_credential_parameter(&format!("{}_region", target))
-      .map(|key| key.request_value(&job))
-      .map_or(Ok(Region::default()), |r| Region::from_str(&r.unwrap()).map_err(|e| MessageError::ProcessingError(job.job_id, format!("unable to match AWS region: {}", e))))?;
+      .map(|key| key.request_value(job))
+      .map_or(Ok(Region::default()), |r| Region::from_str(&r.unwrap())
+        .map_err(|e| {
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("unable to match AWS region: {}", e));
+          MessageError::ProcessingError(result)
+        }))?;
 
     let prefix = job
       .get_credential_parameter(&format!("{}_prefix", target))
@@ -84,7 +89,9 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .map(|value| {
         value.parse::<u16>().map_err(|e| {
-          MessageError::ProcessingError(job.job_id, format!("unable to parse port value: {}", e))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("unable to parse port value: {}", e));
+          MessageError::ProcessingError(result)
         })
       })
       .map_or(Ok(None), |r| r.map(Some))?
@@ -96,17 +103,18 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .map(|value| {
         FromStr::from_str(&value).map_err(|e| {
-          MessageError::ProcessingError(job.job_id, format!("unable to parse ssl enabling: {}", e))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("unable to parse ssl enabling: {}", e));
+          MessageError::ProcessingError(result)
         })
       })
       .map_or(Ok(None), |r| r.map(Some))?
       .unwrap_or(false);
 
     let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
-      MessageError::ProcessingError(
-        job.job_id,
-        format!("missing {} parameter", path_parameter.replace("_", " ")),
-      )
+      let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+        .with_message(format!("missing {} parameter", path_parameter.replace("_", " ")));
+      MessageError::ProcessingError(result)
     })?;
 
     Ok(TargetConfiguration {

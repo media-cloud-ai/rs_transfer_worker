@@ -1,5 +1,5 @@
 [package]
-name = "ftp_worker"
+name = "tranfer_worker"
 version = "0.1.0"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
@@ -8,7 +8,7 @@ authors = [
 edition = "2018"
 
 [dependencies]
-amqp_worker = { version = "0.5.1"}
+amqp_worker = { version = "0.5.4" }
 ftp = { version = "3.0.1", features = ["secure"] }
 futures = "0.1.25"
 futures-util = "0.2"
