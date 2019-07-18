@@ -4,6 +4,7 @@
 
 - [x] local file
 - [x] Download FTP file
+- [x] Download HTTP file
 - [x] Download S3 file
 
 ### List of supported remote access to Write/Upload data
