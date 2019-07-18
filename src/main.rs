@@ -5,6 +5,7 @@ extern crate futures_util;
 
 #[macro_use]
 extern crate log;
+extern crate reqwest;
 extern crate rusoto_core;
 extern crate rusoto_credential;
 extern crate rusoto_s3;
@@ -25,7 +26,7 @@ mod writer;
 struct FtpEvent {}
 
 impl MessageEvent for FtpEvent {
-  fn process(&self, msg: &str) -> Result<u64, MessageError> {
+  fn process(&self, msg: &str) -> Result<job::JobResult, MessageError> {
     message::process(msg)
   }
 }

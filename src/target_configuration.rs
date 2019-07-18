@@ -1,4 +1,4 @@
-use amqp_worker::job::Job;
+use amqp_worker::job::*;
 use amqp_worker::MessageError;
 
 use ftp::openssl::ssl::{SslContext, SslMethod};
@@ -20,8 +20,9 @@ use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum ConfigurationType {
-  LocalFile,
   Ftp,
+  HttpResource,
+  LocalFile,
   S3Bucket
 }
 
@@ -45,33 +46,38 @@ impl TargetConfiguration {
 
     let hostname = job
       .get_credential_parameter(&format!("{}_hostname", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let password = job
       .get_credential_parameter(&format!("{}_password", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let username = job
       .get_credential_parameter(&format!("{}_username", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let access_key = job
       .get_credential_parameter(&format!("{}_access_key", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let secret_key = job
       .get_credential_parameter(&format!("{}_secret_key", target))
-      .map(|key| key.request_value(&job))
+      .map(|key| key.request_value(job))
       .map_or(Ok(None), |r| r.map(Some))?;
 
     let region = job
       .get_credential_parameter(&format!("{}_region", target))
-      .map(|key| key.request_value(&job))
-      .map_or(Ok(Region::default()), |r| Region::from_str(&r.unwrap()).map_err(|e| MessageError::ProcessingError(job.job_id, format!("unable to match AWS region: {}", e))))?;
+      .map(|key| key.request_value(job))
+      .map_or(Ok(Region::default()), |r| Region::from_str(&r.unwrap())
+        .map_err(|e| {
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("unable to match AWS region: {}", e));
+          MessageError::ProcessingError(result)
+        }))?;
 
     let prefix = job
       .get_credential_parameter(&format!("{}_prefix", target))
@@ -84,7 +90,9 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .map(|value| {
         value.parse::<u16>().map_err(|e| {
-          MessageError::ProcessingError(job.job_id, format!("unable to parse port value: {}", e))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("unable to parse port value: {}", e));
+          MessageError::ProcessingError(result)
         })
       })
       .map_or(Ok(None), |r| r.map(Some))?
@@ -96,17 +104,18 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .map(|value| {
         FromStr::from_str(&value).map_err(|e| {
-          MessageError::ProcessingError(job.job_id, format!("unable to parse ssl enabling: {}", e))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("unable to parse ssl enabling: {}", e));
+          MessageError::ProcessingError(result)
         })
       })
       .map_or(Ok(None), |r| r.map(Some))?
       .unwrap_or(false);
 
     let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
-      MessageError::ProcessingError(
-        job.job_id,
-        format!("missing {} parameter", path_parameter.replace("_", " ")),
-      )
+      let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+        .with_message(format!("missing {} parameter", path_parameter.replace("_", " ")));
+      MessageError::ProcessingError(result)
     })?;
 
     Ok(TargetConfiguration {
@@ -123,6 +132,7 @@ impl TargetConfiguration {
     })
   }
 
+  #[cfg(test)]
   pub fn new_file(path: &str) -> Self {
     TargetConfiguration {
       hostname: None,
@@ -138,6 +148,23 @@ impl TargetConfiguration {
     }
   }
 
+  #[cfg(test)]
+  pub fn new_ftp(hostname: &str, username: &str, password: &str, prefix: &str, path: &str) -> Self {
+    TargetConfiguration {
+      hostname: Some(hostname.to_string()),
+      port: 21,
+      username: Some(username.to_string()),
+      password: Some(password.to_string()),
+      access_key: None,
+      secret_key: None,
+      region: Region::default(),
+      prefix: Some(prefix.to_string()),
+      path: path.to_string(),
+      ssl_enabled: false,
+    }
+  }
+
+  #[cfg(test)]
   pub fn new_s3(access_key: &str, secret_key: &str, region: Region, prefix: &str, path: &str) -> Self {
     TargetConfiguration {
       hostname: None,
@@ -153,6 +180,22 @@ impl TargetConfiguration {
     }
   }
 
+  #[cfg(test)]
+  pub fn new_http(path: &str) -> Self {
+    TargetConfiguration {
+      hostname: None,
+      port: 0,
+      username: None,
+      password: None,
+      access_key: None,
+      secret_key: None,
+      region: Region::default(),
+      prefix: None,
+      path: path.to_string(),
+      ssl_enabled: false,
+    }
+  }
+
   pub fn get_type(&self) -> ConfigurationType {
     if self.hostname.is_some() {
       return ConfigurationType::Ftp;
@@ -160,7 +203,13 @@ impl TargetConfiguration {
     if self.secret_key.is_some() {
       return ConfigurationType::S3Bucket;
     }
-    ConfigurationType::LocalFile
+
+    if self.path.starts_with("http://") ||
+      self.path.starts_with("https://") {
+      ConfigurationType::HttpResource
+    } else {
+      ConfigurationType::LocalFile
+    }
   }
 
   pub fn get_ftp_stream(&self) -> Result<FtpStream, FtpError> {
