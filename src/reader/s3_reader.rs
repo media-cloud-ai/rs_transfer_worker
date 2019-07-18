@@ -2,9 +2,7 @@ use crate::target_configuration::TargetConfiguration;
 
 use ftp::FtpError;
 
-// use std::fs::File;
 use std::io::{BufReader, Cursor, Error, ErrorKind, Read};
-// use std::path::Path;
 use tokio_io::AsyncRead;
 use tokio::prelude::*;
 

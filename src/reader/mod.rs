@@ -3,22 +3,13 @@ mod file_reader;
 mod ftp_reader;
 mod s3_reader;
 
-// use crate::target_configuration::TargetConfiguration;
-
-// use ftp::FtpError;
-
-// use std::fs::File;
-// use std::io::{BufReader, Cursor, Error, ErrorKind, Read};
-// use std::path::Path;
-// use tokio_io::AsyncRead;
-// use tokio::prelude::*;
-
 pub use file_reader::FileReader;
 pub use ftp_reader::FtpReader;
 pub use s3_reader::S3Reader;
 
 #[test]
 fn tranfer_ftp() {
+  use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
   use std::env;
@@ -46,6 +37,7 @@ fn tranfer_ftp() {
 
 #[test]
 fn tranfer_s3() {
+  use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
   use std::env;
