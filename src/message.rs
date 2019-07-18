@@ -64,15 +64,26 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         })
     },
     ConfigurationType::LocalFile => {
-    let mut file_reader = FileReader::new(source_target.clone());
+      let mut file_reader = FileReader::new(source_target.clone());
 
-    file_reader
-      .process_copy(move |stream| writer.write_stream(stream))
-        .map_err(|e| {
-            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-                .with_message(e.to_string());
-            MessageError::ProcessingError(result)
-        })
+      file_reader
+        .process_copy(move |stream| writer.write_stream(stream))
+          .map_err(|e| {
+              let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+                  .with_message(e.to_string());
+              MessageError::ProcessingError(result)
+          })
+    },
+    ConfigurationType::HttpResource => {
+      let mut http_reader = HttpReader::new(source_target.clone());
+
+      http_reader
+        .process_copy(move |stream| writer.write_stream(stream))
+          .map_err(|e| {
+              let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+                  .with_message(e.to_string());
+              MessageError::ProcessingError(result)
+          })
     },
   }
 }

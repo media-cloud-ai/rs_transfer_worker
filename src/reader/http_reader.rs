@@ -3,8 +3,7 @@ use crate::target_configuration::TargetConfiguration;
 use ftp::FtpError;
 use reqwest;
 use reqwest::StatusCode;
-use std::fs::File;
-use std::io::{BufReader, Error, ErrorKind, Read};
+use std::io::{Error, ErrorKind, Read};
 
 pub struct HttpReader {
   target: TargetConfiguration,

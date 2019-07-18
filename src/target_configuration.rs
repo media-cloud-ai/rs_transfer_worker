@@ -20,8 +20,9 @@ use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum ConfigurationType {
-  LocalFile,
   Ftp,
+  HttpResource,
+  LocalFile,
   S3Bucket
 }
 
@@ -202,7 +203,13 @@ impl TargetConfiguration {
     if self.secret_key.is_some() {
       return ConfigurationType::S3Bucket;
     }
-    ConfigurationType::LocalFile
+
+    if self.path.starts_with("http://") ||
+      self.path.starts_with("https://") {
+      ConfigurationType::HttpResource
+    } else {
+      ConfigurationType::LocalFile
+    }
   }
 
   pub fn get_ftp_stream(&self) -> Result<FtpStream, FtpError> {
