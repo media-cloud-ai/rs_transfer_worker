@@ -1,10 +1,12 @@
 
 mod file_reader;
 mod ftp_reader;
+mod http_reader;
 mod s3_reader;
 
 pub use file_reader::FileReader;
 pub use ftp_reader::FtpReader;
+pub use http_reader::HttpReader;
 pub use s3_reader::S3Reader;
 
 #[test]
@@ -58,6 +60,21 @@ fn tranfer_s3() {
 
   let mut reader = S3Reader::new(src_conf);
   let dst_conf = TargetConfiguration::new_file("/tmp/transfer_test_s3.raw");
+  let mut writer = FileStreamWriter::new(dst_conf);
+  writer.open().unwrap();
+  reader.process_copy(move |stream| writer.write_stream(stream)).unwrap();
+}
+
+#[test]
+fn tranfer_http() {
+  use crate::target_configuration::TargetConfiguration;
+  use crate::writer::FileStreamWriter;
+  use crate::writer::StreamWriter;
+  use std::env;
+
+  let src_conf = TargetConfiguration::new_http("https://media-io.com");
+  let mut reader = HttpReader::new(src_conf);
+  let dst_conf = TargetConfiguration::new_file("/tmp/transfer_test_http.raw");
   let mut writer = FileStreamWriter::new(dst_conf);
   writer.open().unwrap();
   reader.process_copy(move |stream| writer.write_stream(stream)).unwrap();

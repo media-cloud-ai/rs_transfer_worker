@@ -5,6 +5,7 @@ extern crate futures_util;
 
 #[macro_use]
 extern crate log;
+extern crate reqwest;
 extern crate rusoto_core;
 extern crate rusoto_credential;
 extern crate rusoto_s3;

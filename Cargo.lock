@@ -2174,6 +2174,7 @@ dependencies = [
  "futures 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest 0.9.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_core 0.40.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_credential 0.40.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_s3 0.40.0 (registry+https://github.com/rust-lang/crates.io-index)",

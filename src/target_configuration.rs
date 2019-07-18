@@ -179,6 +179,22 @@ impl TargetConfiguration {
     }
   }
 
+  #[cfg(test)]
+  pub fn new_http(path: &str) -> Self {
+    TargetConfiguration {
+      hostname: None,
+      port: 0,
+      username: None,
+      password: None,
+      access_key: None,
+      secret_key: None,
+      region: Region::default(),
+      prefix: None,
+      path: path.to_string(),
+      ssl_enabled: false,
+    }
+  }
+
   pub fn get_type(&self) -> ConfigurationType {
     if self.hostname.is_some() {
       return ConfigurationType::Ftp;
