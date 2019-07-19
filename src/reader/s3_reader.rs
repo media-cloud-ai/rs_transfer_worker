@@ -5,6 +5,7 @@ use ftp::FtpError;
 use std::io::{BufReader, Cursor, Error, ErrorKind, Read};
 use tokio_io::AsyncRead;
 use tokio::prelude::*;
+use std::thread;
 
 pub struct S3Reader {
   target: TargetConfiguration,
@@ -43,17 +44,22 @@ impl S3Reader {
             }
         }
     }
-    let byte_stream = ByteStream(async_read);
-    let process =
-      byte_stream
-        .for_each(move |stream| {
-          let cursor = Cursor::new(stream);
-          let mut reader = BufReader::new(cursor);
-          streamer(&mut reader).map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))
-        })
-        .map_err(|e| println!("Error reading byte: {:?}", e));
 
-    tokio::run(process);
-    Ok(())
+    let transfer_thread = thread::spawn(move || {
+      let byte_stream = ByteStream(async_read);
+      let process =
+        byte_stream
+          .for_each(move |stream| {
+            let cursor = Cursor::new(stream);
+            let mut reader = BufReader::new(cursor);
+            streamer(&mut reader).map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))
+          })
+          .map_err(|e| println!("Error reading byte: {:?}", e));
+
+      tokio::run(process);
+      Ok(())
+    });
+
+    transfer_thread.join().map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, format!("{:?}", e))))?
   }
 }
