@@ -1,4 +1,3 @@
-
 use crate::target_configuration::TargetConfiguration;
 use crate::writer::StreamWriter;
 
@@ -21,7 +20,8 @@ impl FileStreamWriter {
   pub fn open(&mut self) -> Result<(), FtpError> {
     let destination_path = Path::new(self.target.path.as_str());
     let destination_directory = destination_path.parent().unwrap_or_else(|| Path::new("/"));
-    fs::create_dir_all(destination_directory).map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
+    fs::create_dir_all(destination_directory)
+      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
 
     let _destination_file = File::create(&self.target.path)
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
@@ -31,8 +31,7 @@ impl FileStreamWriter {
 
 impl StreamWriter for FileStreamWriter {
   fn write_stream<T: Sized + Read>(&self, mut read_stream: T) -> Result<(), FtpError> {
-    let destination_file =
-      OpenOptions::new()
+    let destination_file = OpenOptions::new()
       .write(true)
       .create(false)
       .append(true)
