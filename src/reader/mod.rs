@@ -70,7 +70,6 @@ fn tranfer_http() {
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
-  use std::env;
 
   let src_conf = TargetConfiguration::new_http("https://media-io.com");
   let mut reader = HttpReader::new(src_conf);

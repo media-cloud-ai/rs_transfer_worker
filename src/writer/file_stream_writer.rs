@@ -8,7 +8,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{copy, BufWriter, Error, ErrorKind, Read};
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FileStreamWriter {
   target: TargetConfiguration,
 }
@@ -30,7 +30,7 @@ impl FileStreamWriter {
 }
 
 impl StreamWriter for FileStreamWriter {
-  fn write_stream(&self, read_stream: &mut dyn Read) -> Result<(), FtpError> {
+  fn write_stream<T: Sized + Read>(&self, mut read_stream: T) -> Result<(), FtpError> {
     let destination_file =
       OpenOptions::new()
       .write(true)
@@ -40,7 +40,7 @@ impl StreamWriter for FileStreamWriter {
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
 
     let mut file_writer: BufWriter<File> = BufWriter::new(destination_file);
-    copy(read_stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))?;
+    copy(&mut read_stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))?;
     Ok(())
   }
 }
