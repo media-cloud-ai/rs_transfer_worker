@@ -1,4 +1,3 @@
-
 use crate::target_configuration::TargetConfiguration;
 use crate::writer::StreamWriter;
 

@@ -6,14 +6,10 @@ use ftp::types::FileType;
 use ftp::FtpError;
 use ftp::FtpStream;
 
-use rusoto_core::request::HttpClient;
 use rusoto_core::region::Region;
+use rusoto_core::request::HttpClient;
 use rusoto_credential::StaticProvider;
-use rusoto_s3::{
-  GetObjectRequest,
-  S3Client,
-  S3,
-};
+use rusoto_s3::{GetObjectRequest, S3Client, S3};
 
 use std::io::{Error, ErrorKind};
 use std::str::FromStr;
@@ -23,7 +19,7 @@ pub enum ConfigurationType {
   Ftp,
   HttpResource,
   LocalFile,
-  S3Bucket
+  S3Bucket,
 }
 
 #[derive(Debug, Clone)]
@@ -72,12 +68,13 @@ impl TargetConfiguration {
     let region = job
       .get_credential_parameter(&format!("{}_region", target))
       .map(|key| key.request_value(job))
-      .map_or(Ok(Region::default()), |r| Region::from_str(&r.unwrap())
-        .map_err(|e| {
+      .map_or(Ok(Region::default()), |r| {
+        Region::from_str(&r.unwrap()).map_err(|e| {
           let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
             .with_message(format!("unable to match AWS region: {}", e));
           MessageError::ProcessingError(result)
-        }))?;
+        })
+      })?;
 
     let prefix = job
       .get_credential_parameter(&format!("{}_prefix", target))
@@ -113,8 +110,10 @@ impl TargetConfiguration {
       .unwrap_or(false);
 
     let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
-      let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-        .with_message(format!("missing {} parameter", path_parameter.replace("_", " ")));
+      let result = JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(format!(
+        "missing {} parameter",
+        path_parameter.replace("_", " ")
+      ));
       MessageError::ProcessingError(result)
     })?;
 
@@ -165,7 +164,13 @@ impl TargetConfiguration {
   }
 
   #[cfg(test)]
-  pub fn new_s3(access_key: &str, secret_key: &str, region: Region, prefix: &str, path: &str) -> Self {
+  pub fn new_s3(
+    access_key: &str,
+    secret_key: &str,
+    region: Region,
+    prefix: &str,
+    path: &str,
+  ) -> Self {
     TargetConfiguration {
       hostname: None,
       port: 0,
@@ -204,8 +209,7 @@ impl TargetConfiguration {
       return ConfigurationType::S3Bucket;
     }
 
-    if self.path.starts_with("http://") ||
-      self.path.starts_with("https://") {
+    if self.path.starts_with("http://") || self.path.starts_with("https://") {
       ConfigurationType::HttpResource
     } else {
       ConfigurationType::LocalFile
@@ -234,8 +238,11 @@ impl TargetConfiguration {
   pub fn get_s3_stream(&self) -> Result<rusoto_core::ByteStream, FtpError> {
     let client = S3Client::new_with(
       HttpClient::new().expect("Unable to create HTTP client"),
-      StaticProvider::new_minimal(self.access_key.clone().unwrap(), self.secret_key.clone().unwrap()),
-      self.region.clone()
+      StaticProvider::new_minimal(
+        self.access_key.clone().unwrap(),
+        self.secret_key.clone().unwrap(),
+      ),
+      self.region.clone(),
     );
 
     let request = GetObjectRequest {
@@ -244,8 +251,13 @@ impl TargetConfiguration {
       ..Default::default()
     };
 
-    let object = client.get_object(request).sync().unwrap();
-    let stream = object.body.unwrap();
+    let object = client
+      .get_object(request)
+      .sync()
+      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+    let stream = object.body.ok_or(FtpError::InvalidResponse(
+      "No retrieved object data to access.".to_string(),
+    ))?;
     Ok(stream)
   }
 }

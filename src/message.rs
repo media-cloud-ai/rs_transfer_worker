@@ -1,5 +1,5 @@
-use amqp_worker::*;
 use amqp_worker::job::*;
+use amqp_worker::*;
 
 use crate::reader::*;
 use crate::target_configuration::*;
@@ -19,12 +19,11 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
     }
     ConfigurationType::LocalFile => {
       let mut writer = FileStreamWriter::new(destination_target);
-      writer.open()
-        .map_err(|e| {
-            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-                .with_message(e.to_string());
-            MessageError::ProcessingError(result)
-        })?;
+      writer.open().map_err(|e| {
+        let result =
+          JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+        MessageError::ProcessingError(result)
+      })?;
       do_transfer(&job, writer)?;
     }
     _ => {
@@ -47,43 +46,43 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
       ftp_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-                .with_message(e.to_string());
-            MessageError::ProcessingError(result)
+          let result =
+            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+          MessageError::ProcessingError(result)
         })
-    },
+    }
     ConfigurationType::S3Bucket => {
       let mut s3_reader = S3Reader::new(source_target.clone());
 
       s3_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-                .with_message(e.to_string());
-            MessageError::ProcessingError(result)
+          let result =
+            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+          MessageError::ProcessingError(result)
         })
-    },
+    }
     ConfigurationType::LocalFile => {
       let mut file_reader = FileReader::new(source_target.clone());
 
       file_reader
         .process_copy(move |stream| writer.write_stream(stream))
-          .map_err(|e| {
-              let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-                  .with_message(e.to_string());
-              MessageError::ProcessingError(result)
-          })
-    },
+        .map_err(|e| {
+          let result =
+            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+          MessageError::ProcessingError(result)
+        })
+    }
     ConfigurationType::HttpResource => {
       let mut http_reader = HttpReader::new(source_target.clone());
 
       http_reader
         .process_copy(move |stream| writer.write_stream(stream))
-          .map_err(|e| {
-              let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-                  .with_message(e.to_string());
-              MessageError::ProcessingError(result)
-          })
-    },
+        .map_err(|e| {
+          let result =
+            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+          MessageError::ProcessingError(result)
+        })
+    }
   }
 }
