@@ -6,7 +6,7 @@ use ftp::FtpError;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FtpStreamWriter {
   target: TargetConfiguration,
 }
@@ -18,7 +18,7 @@ impl FtpStreamWriter {
 }
 
 impl StreamWriter for FtpStreamWriter {
-  fn write_stream(&self, read_stream: &mut dyn Read) -> Result<(), FtpError> {
+  fn write_stream<T: Sized + Read>(&self, read_stream: T) -> Result<(), FtpError> {
     let mut ftp_stream = self.target.get_ftp_stream()?;
 
     let destination_path = Path::new(self.target.path.as_str());

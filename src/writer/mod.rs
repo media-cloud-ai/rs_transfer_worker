@@ -8,6 +8,6 @@ use std::io::Read;
 pub use file_stream_writer::FileStreamWriter;
 pub use ftp_stream_writer::FtpStreamWriter;
 
-pub trait StreamWriter: Sized + Send + Sync {
-  fn write_stream(&self, read_stream: &mut dyn Read) -> Result<(), FtpError>;
+pub trait StreamWriter: Clone + Sized + Send + Sync {
+  fn write_stream<T: Sized + Read>(&self, read_stream: T) -> Result<(), FtpError>;
 }
