@@ -16,7 +16,7 @@ build:
   stage: build
   script:
     - export IMAGE_TAG=`git describe --always --tags --first-parent`
-    - docker build -t $CONTAINER_LOCAL_IMAGE .
+    - docker build --build-arg IMAGE_TAG=IMAGE_TAG -t $CONTAINER_LOCAL_IMAGE .
     - docker login -u maarnaud -p $REGISTRY_PASSWORD $CONTAINER_REGISTRY
     - docker tag $CONTAINER_LOCAL_IMAGE $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
     - docker push $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
