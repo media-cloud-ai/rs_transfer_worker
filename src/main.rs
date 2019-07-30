@@ -9,13 +9,10 @@ extern crate reqwest;
 extern crate rusoto_core;
 extern crate rusoto_credential;
 extern crate rusoto_s3;
-extern crate simple_logger;
 extern crate tokio;
 extern crate tokio_io;
 
 use amqp_worker::*;
-use log::Level;
-use std::env;
 
 mod message;
 mod reader;
@@ -34,11 +31,5 @@ impl MessageEvent for FtpEvent {
 static FTP_EVENT: FtpEvent = FtpEvent {};
 
 fn main() {
-  if env::var("VERBOSE").is_ok() {
-    simple_logger::init_with_level(Level::Debug).unwrap();
-  } else {
-    simple_logger::init_with_level(Level::Warn).unwrap();
-  }
-
   start_worker(&FTP_EVENT);
 }

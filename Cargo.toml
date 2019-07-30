@@ -6,9 +6,10 @@ authors = [
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
 ]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
-amqp_worker = { version = "0.5.4" }
+amqp_worker = { version = "0.5.6" }
 ftp = { version = "3.0.1", features = ["secure"] }
 futures = "0.1.25"
 futures-util = "0.2"
@@ -17,6 +18,5 @@ reqwest = "0.9.5"
 rusoto_core = "0.40.0"
 rusoto_credential = "0.40.0"
 rusoto_s3 = "0.40.0"
-simple_logger = "1.0.1"
 tokio = "0.1"
 tokio-io = "0.1"
