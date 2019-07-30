@@ -415,7 +415,6 @@ pub fn get_target_from_url_test_https() {
   assert_eq!(None, target.prefix);
 }
 
-
 #[test]
 pub fn get_target_from_url_test_ftp() {
   let path = "ftp://username:password@hostname/folder/file";
