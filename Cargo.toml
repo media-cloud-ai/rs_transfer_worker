@@ -6,7 +6,6 @@ authors = [
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
 ]
 edition = "2018"
-# build = "build.rs"
 
 [dependencies]
 amqp_worker = { version = "0.5.6" }
