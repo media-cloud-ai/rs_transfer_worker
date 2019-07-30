@@ -1,18 +1,17 @@
+use std::io::{Error, ErrorKind};
+use std::str::FromStr;
+
 use amqp_worker::job::*;
 use amqp_worker::MessageError;
-
 use ftp::openssl::ssl::{SslContext, SslMethod};
 use ftp::types::FileType;
 use ftp::FtpError;
 use ftp::FtpStream;
-
 use rusoto_core::region::Region;
 use rusoto_core::request::HttpClient;
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetObjectRequest, S3Client, S3};
-
-use std::io::{Error, ErrorKind};
-use std::str::FromStr;
+use url::Url;
 
 #[derive(Debug)]
 pub enum ConfigurationType {
@@ -39,6 +38,18 @@ pub struct TargetConfiguration {
 impl TargetConfiguration {
   pub fn new(job: &Job, target: &str) -> Result<Self, MessageError> {
     let path_parameter = format!("{}_path", target);
+
+    let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
+      let result = JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(format!(
+        "missing {} parameter",
+        path_parameter.replace("_", " ")
+      ));
+      MessageError::ProcessingError(result)
+    })?;
+
+    if let Some(target) = TargetConfiguration::get_target_from_url(path.as_str())? {
+      return Ok(target);
+    }
 
     let hostname = job
       .get_credential_parameter(&format!("{}_hostname", target))
@@ -108,14 +119,6 @@ impl TargetConfiguration {
       })
       .map_or(Ok(None), |r| r.map(Some))?
       .unwrap_or(false);
-
-    let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
-      let result = JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(format!(
-        "missing {} parameter",
-        path_parameter.replace("_", " ")
-      ));
-      MessageError::ProcessingError(result)
-    })?;
 
     Ok(TargetConfiguration {
       access_key,
@@ -209,6 +212,64 @@ impl TargetConfiguration {
       prefix: None,
       path: path.to_string(),
       ssl_enabled,
+    }
+  }
+
+  fn get_target_from_url(path: &str) -> Result<Option<TargetConfiguration>, MessageError> {
+    let parsing_result = Url::parse(path);
+    if parsing_result.is_err() {
+      return Ok(None);
+    }
+
+    let url = parsing_result.unwrap();
+    match url.scheme() {
+      "file" => Ok(Some(TargetConfiguration::new_file(path))),
+      "http" => Ok(Some(TargetConfiguration::new_http(path))),
+      "https" => Ok(Some(TargetConfiguration::new_http_with_ssl(path, true))),
+      "ftp" => Ok(Some(TargetConfiguration::new_ftp(
+        url.host_str().unwrap(),
+        url.username(),
+        url.password().unwrap(),
+        "",
+        path,
+      ))),
+      "sftp" => Ok(Some(TargetConfiguration::new_ftp_with_ssl(
+        url.host_str().unwrap(),
+        url.username(),
+        url.password().unwrap(),
+        "",
+        path,
+        true,
+      ))),
+      "s3" => {
+        let region_str = TargetConfiguration::get_value_from_url_parameters(&url, "region")?;
+        let region = Region::from_str(region_str.as_str())
+          .map_err(|error| MessageError::RuntimeError(error.to_string()))?;
+
+        let access_key = TargetConfiguration::get_value_from_url_parameters(&url, "access_key")?;
+        let secret_key = TargetConfiguration::get_value_from_url_parameters(&url, "secret_key")?;
+
+        Ok(Some(TargetConfiguration::new_s3(
+          access_key.as_str(),
+          secret_key.as_str(),
+          region,
+          url.host_str().unwrap(),
+          path,
+        )))
+      }
+      _ => Ok(None),
+    }
+  }
+
+  fn get_value_from_url_parameters(url: &Url, key: &str) -> Result<String, MessageError> {
+    let parse_result = url.query_pairs().into_owned().find(|(k, _v)| k.eq(key));
+    if let Some((_key, value)) = parse_result {
+      Ok(value)
+    } else {
+      Err(MessageError::RuntimeError(format!(
+        "Cannot find {:?} into url: {:?}",
+        key, url
+      )))
     }
   }
 

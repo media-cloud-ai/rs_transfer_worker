@@ -12,6 +12,7 @@ extern crate rusoto_s3;
 extern crate simple_logger;
 extern crate tokio;
 extern crate tokio_io;
+extern crate url;
 
 use amqp_worker::*;
 use log::Level;
