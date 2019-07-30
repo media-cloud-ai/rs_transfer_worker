@@ -333,3 +333,145 @@ impl TargetConfiguration {
     Ok(stream)
   }
 }
+
+#[test]
+pub fn get_value_from_url_parameters_test() {
+  let url1 = Url::parse("https://www.google.com").unwrap();
+  let result1 = TargetConfiguration::get_value_from_url_parameters(&url1, "search");
+  assert!(result1.is_err());
+
+  let url2 = Url::parse("https://www.google.com?search=hello").unwrap();
+  let result2 = TargetConfiguration::get_value_from_url_parameters(&url2, "search");
+  assert!(result2.is_ok());
+  assert_eq!("hello", result2.unwrap().as_str());
+
+  let url3 = Url::parse("https://www.google.com?page=23&search=hello").unwrap();
+  let result3 = TargetConfiguration::get_value_from_url_parameters(&url3, "search");
+  assert!(result3.is_ok());
+  assert_eq!("hello", result3.unwrap().as_str());
+
+  let result4 = TargetConfiguration::get_value_from_url_parameters(&url3, "page");
+  assert!(result4.is_ok());
+  assert_eq!("23", result4.unwrap().as_str());
+}
+
+#[test]
+pub fn get_target_from_url_test_file() {
+  let path = "file://path/to/local/file";
+  let result = TargetConfiguration::get_target_from_url(path);
+  assert!(result.is_ok());
+  let option = result.unwrap();
+  assert!(option.is_some());
+  let target = option.unwrap();
+  assert_eq!(path, target.path);
+  assert_eq!(false, target.ssl_enabled);
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(None, target.prefix);
+}
+
+#[test]
+pub fn get_target_from_url_test_http() {
+  let path = "http://www.google.com";
+  let result = TargetConfiguration::get_target_from_url(path);
+  assert!(result.is_ok());
+  let option = result.unwrap();
+  assert!(option.is_some());
+  let target = option.unwrap();
+  assert_eq!(path, target.path);
+  assert_eq!(false, target.ssl_enabled);
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(None, target.prefix);
+}
+
+#[test]
+pub fn get_target_from_url_test_https() {
+  let path = "https://www.google.com";
+  let result = TargetConfiguration::get_target_from_url(path);
+  assert!(result.is_ok());
+  let option = result.unwrap();
+  assert!(option.is_some());
+  let target = option.unwrap();
+  assert_eq!(path, target.path);
+  assert_eq!(true, target.ssl_enabled);
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(None, target.prefix);
+}
+
+
+#[test]
+pub fn get_target_from_url_test_ftp() {
+  let path = "ftp://username:password@hostname/folder/file";
+  let result = TargetConfiguration::get_target_from_url(path);
+  assert!(result.is_ok());
+  let option = result.unwrap();
+  assert!(option.is_some());
+  let target = option.unwrap();
+  assert_eq!(Some("hostname".to_string()), target.hostname);
+  assert_eq!(21, target.port);
+  assert_eq!(Some("username".to_string()), target.username);
+  assert_eq!(Some("password".to_string()), target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(Some("".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn get_target_from_url_test_sftp() {
+  let path = "sftp://username:password@hostname/folder/file";
+  let result = TargetConfiguration::get_target_from_url(path);
+  assert!(result.is_ok());
+  let option = result.unwrap();
+  assert!(option.is_some());
+  let target = option.unwrap();
+  assert_eq!(Some("hostname".to_string()), target.hostname);
+  assert_eq!(21, target.port);
+  assert_eq!(Some("username".to_string()), target.username);
+  assert_eq!(Some("password".to_string()), target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(Some("".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(true, target.ssl_enabled);
+}
+
+#[test]
+pub fn get_target_from_url_test_s3() {
+  let path = "s3://bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
+  let result = TargetConfiguration::get_target_from_url(path);
+  assert!(result.is_ok());
+  let option = result.unwrap();
+  assert!(option.is_some());
+  let target = option.unwrap();
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(Some("login".to_string()), target.access_key);
+  assert_eq!(Some("password".to_string()), target.secret_key);
+  assert_eq!(Region::EuCentral1, target.region);
+  assert_eq!(Some("bucket".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
