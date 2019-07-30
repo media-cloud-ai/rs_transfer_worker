@@ -231,14 +231,14 @@ impl TargetConfiguration {
         url.username(),
         url.password().unwrap(),
         "",
-        path,
+        url.path(),
       ))),
       "sftp" => Ok(Some(TargetConfiguration::new_ftp_with_ssl(
         url.host_str().unwrap(),
         url.username(),
         url.password().unwrap(),
         "",
-        path,
+        url.path(),
         true,
       ))),
       "s3" => {
@@ -254,7 +254,7 @@ impl TargetConfiguration {
           secret_key.as_str(),
           region,
           url.host_str().unwrap(),
-          path,
+          url.path(),
         )))
       }
       _ => Ok(None),
