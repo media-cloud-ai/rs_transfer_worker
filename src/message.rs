@@ -7,7 +7,7 @@ use crate::writer::*;
 
 pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
   let job = job::Job::new(message)?;
-  info!("reveived message: {:?}", job);
+  debug!("received message: {:?}", job);
 
   job.check_requirements()?;
   let destination_target = TargetConfiguration::new(&job, "destination")?;
