@@ -131,7 +131,6 @@ impl TargetConfiguration {
     })
   }
 
-  #[cfg(test)]
   pub fn new_file(path: &str) -> Self {
     TargetConfiguration {
       hostname: None,
@@ -147,8 +146,18 @@ impl TargetConfiguration {
     }
   }
 
-  #[cfg(test)]
   pub fn new_ftp(hostname: &str, username: &str, password: &str, prefix: &str, path: &str) -> Self {
+    TargetConfiguration::new_ftp_with_ssl(hostname, username, password, prefix, path, false)
+  }
+
+  pub fn new_ftp_with_ssl(
+    hostname: &str,
+    username: &str,
+    password: &str,
+    prefix: &str,
+    path: &str,
+    ssl_enabled: bool,
+  ) -> Self {
     TargetConfiguration {
       hostname: Some(hostname.to_string()),
       port: 21,
@@ -159,11 +168,10 @@ impl TargetConfiguration {
       region: Region::default(),
       prefix: Some(prefix.to_string()),
       path: path.to_string(),
-      ssl_enabled: false,
+      ssl_enabled,
     }
   }
 
-  #[cfg(test)]
   pub fn new_s3(
     access_key: &str,
     secret_key: &str,
@@ -185,8 +193,11 @@ impl TargetConfiguration {
     }
   }
 
-  #[cfg(test)]
   pub fn new_http(path: &str) -> Self {
+    TargetConfiguration::new_http_with_ssl(path, false)
+  }
+
+  pub fn new_http_with_ssl(path: &str, ssl_enabled: bool) -> Self {
     TargetConfiguration {
       hostname: None,
       port: 0,
@@ -197,7 +208,7 @@ impl TargetConfiguration {
       region: Region::default(),
       prefix: None,
       path: path.to_string(),
-      ssl_enabled: false,
+      ssl_enabled,
     }
   }
 
