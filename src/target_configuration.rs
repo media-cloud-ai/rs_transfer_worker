@@ -13,7 +13,7 @@ use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetObjectRequest, S3Client, S3};
 use url::Url;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ConfigurationType {
   Ftp,
   HttpResource,
@@ -489,4 +489,71 @@ pub fn get_target_from_url_test_s3() {
   assert_eq!(Some("bucket".to_string()), target.prefix);
   assert_eq!("/folder/file".to_string(), target.path);
   assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn new_target_from_url_test() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+        {
+          "id": "source_path",
+          "type": "string",
+          "value": "ftp://username:password@hostname/folder/file"
+        }
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+  let target = TargetConfiguration::new(&job, "source").unwrap();
+  assert_eq!(ConfigurationType::Ftp, target.get_type());
+  assert_eq!(Some("hostname".to_string()), target.hostname);
+  assert_eq!(21, target.port);
+  assert_eq!(Some("username".to_string()), target.username);
+  assert_eq!(Some("password".to_string()), target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(Some("".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn new_target_from_non_url_test() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+        {
+          "id": "source_path",
+          "type": "string",
+          "value": "/path/to/file"
+        },
+        {
+          "id": "source_hostname",
+          "type": "credential",
+          "value": "SOME_HOST_CREDENTIAL"
+        }
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+  let result = TargetConfiguration::new(&job, "source");
+  assert!(result.is_err());
+  let error = result.unwrap_err();
+  assert_eq!(error, MessageError::ProcessingError(
+    JobResult {
+      job_id: 123,
+      status: JobStatus::Error,
+      parameters: vec![
+        Parameter::StringParam {
+          id: "message".to_string(),
+          default: None,
+          value: Some("http://127.0.0.1:4000/api/sessions: error trying to connect: Connection refused (os error 111)".to_string())
+        }
+      ]
+    }
+  ));
 }
