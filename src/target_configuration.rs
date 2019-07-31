@@ -47,8 +47,8 @@ impl TargetConfiguration {
       MessageError::ProcessingError(result)
     })?;
 
-    if let Some(target) = TargetConfiguration::get_target_from_url(path.as_str())? {
-      return Ok(target);
+    if let Ok(url) = Url::parse(path.as_str()) {
+      return TargetConfiguration::get_target_from_url(&url);
     }
 
     let hostname = job
@@ -215,32 +215,44 @@ impl TargetConfiguration {
     }
   }
 
-  fn get_target_from_url(path: &str) -> Result<Option<TargetConfiguration>, MessageError> {
-    let parsing_result = Url::parse(path);
-    if parsing_result.is_err() {
-      return Ok(None);
-    }
-
-    let url = parsing_result.unwrap();
+  fn get_target_from_url(url: &Url) -> Result<TargetConfiguration, MessageError> {
     match url.scheme() {
-      "file" => Ok(Some(TargetConfiguration::new_file(path))),
-      "http" => Ok(Some(TargetConfiguration::new_http(path))),
-      "https" => Ok(Some(TargetConfiguration::new_http_with_ssl(path, true))),
-      "ftp" => Ok(Some(TargetConfiguration::new_ftp(
-        url.host_str().unwrap(),
-        url.username(),
-        url.password().unwrap(),
-        "",
-        url.path(),
-      ))),
-      "sftp" => Ok(Some(TargetConfiguration::new_ftp_with_ssl(
-        url.host_str().unwrap(),
-        url.username(),
-        url.password().unwrap(),
-        "",
-        url.path(),
-        true,
-      ))),
+      "file" => Ok(TargetConfiguration::new_file(url.as_str())),
+      "http" => Ok(TargetConfiguration::new_http(url.as_str())),
+      "https" => Ok(TargetConfiguration::new_http_with_ssl(url.as_str(), true)),
+      "ftp" => {
+        if let (Some(hostname), Some(password)) = (url.host_str(), url.password()) {
+          Ok(TargetConfiguration::new_ftp(
+            hostname,
+            url.username(),
+            password,
+            "",
+            url.path(),
+          ))
+        } else {
+          Err(MessageError::RuntimeError(format!(
+            "Invalid FTP URL: {:?}",
+            url
+          )))
+        }
+      }
+      "sftp" => {
+        if let (Some(hostname), Some(password)) = (url.host_str(), url.password()) {
+          Ok(TargetConfiguration::new_ftp_with_ssl(
+            hostname,
+            url.username(),
+            password,
+            "",
+            url.path(),
+            true,
+          ))
+        } else {
+          Err(MessageError::RuntimeError(format!(
+            "Invalid SFTP URL: {:?}",
+            url
+          )))
+        }
+      }
       "s3" => {
         let region_str = TargetConfiguration::get_value_from_url_parameters(&url, "region")?;
         let region = Region::from_str(region_str.as_str())
@@ -249,15 +261,25 @@ impl TargetConfiguration {
         let access_key = TargetConfiguration::get_value_from_url_parameters(&url, "access_key")?;
         let secret_key = TargetConfiguration::get_value_from_url_parameters(&url, "secret_key")?;
 
-        Ok(Some(TargetConfiguration::new_s3(
-          access_key.as_str(),
-          secret_key.as_str(),
-          region,
-          url.host_str().unwrap(),
-          url.path(),
-        )))
+        if let Some(hostname) = url.host_str() {
+          Ok(TargetConfiguration::new_s3(
+            access_key.as_str(),
+            secret_key.as_str(),
+            region,
+            hostname,
+            url.path(),
+          ))
+        } else {
+          Err(MessageError::RuntimeError(format!(
+            "Invalid S3 URL: {:?}",
+            url
+          )))
+        }
       }
-      _ => Ok(None),
+      _ => Err(MessageError::RuntimeError(format!(
+        "Unsupported URL: {:?}",
+        url
+      ))),
     }
   }
 
@@ -358,11 +380,10 @@ pub fn get_value_from_url_parameters_test() {
 #[test]
 pub fn get_target_from_url_test_file() {
   let path = "file://path/to/local/file";
-  let result = TargetConfiguration::get_target_from_url(path);
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
-  let option = result.unwrap();
-  assert!(option.is_some());
-  let target = option.unwrap();
+  let target = result.unwrap();
   assert_eq!(path, target.path);
   assert_eq!(false, target.ssl_enabled);
   assert_eq!(None, target.hostname);
@@ -377,12 +398,11 @@ pub fn get_target_from_url_test_file() {
 
 #[test]
 pub fn get_target_from_url_test_http() {
-  let path = "http://www.google.com";
-  let result = TargetConfiguration::get_target_from_url(path);
+  let path = "http://www.google.com/";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
-  let option = result.unwrap();
-  assert!(option.is_some());
-  let target = option.unwrap();
+  let target = result.unwrap();
   assert_eq!(path, target.path);
   assert_eq!(false, target.ssl_enabled);
   assert_eq!(None, target.hostname);
@@ -397,12 +417,11 @@ pub fn get_target_from_url_test_http() {
 
 #[test]
 pub fn get_target_from_url_test_https() {
-  let path = "https://www.google.com";
-  let result = TargetConfiguration::get_target_from_url(path);
+  let path = "https://www.google.com/";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
-  let option = result.unwrap();
-  assert!(option.is_some());
-  let target = option.unwrap();
+  let target = result.unwrap();
   assert_eq!(path, target.path);
   assert_eq!(true, target.ssl_enabled);
   assert_eq!(None, target.hostname);
@@ -418,11 +437,10 @@ pub fn get_target_from_url_test_https() {
 #[test]
 pub fn get_target_from_url_test_ftp() {
   let path = "ftp://username:password@hostname/folder/file";
-  let result = TargetConfiguration::get_target_from_url(path);
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
-  let option = result.unwrap();
-  assert!(option.is_some());
-  let target = option.unwrap();
+  let target = result.unwrap();
   assert_eq!(Some("hostname".to_string()), target.hostname);
   assert_eq!(21, target.port);
   assert_eq!(Some("username".to_string()), target.username);
@@ -438,11 +456,10 @@ pub fn get_target_from_url_test_ftp() {
 #[test]
 pub fn get_target_from_url_test_sftp() {
   let path = "sftp://username:password@hostname/folder/file";
-  let result = TargetConfiguration::get_target_from_url(path);
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
-  let option = result.unwrap();
-  assert!(option.is_some());
-  let target = option.unwrap();
+  let target = result.unwrap();
   assert_eq!(Some("hostname".to_string()), target.hostname);
   assert_eq!(21, target.port);
   assert_eq!(Some("username".to_string()), target.username);
@@ -458,11 +475,10 @@ pub fn get_target_from_url_test_sftp() {
 #[test]
 pub fn get_target_from_url_test_s3() {
   let path = "s3://bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
-  let result = TargetConfiguration::get_target_from_url(path);
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
-  let option = result.unwrap();
-  assert!(option.is_some());
-  let target = option.unwrap();
+  let target = result.unwrap();
   assert_eq!(None, target.hostname);
   assert_eq!(0, target.port);
   assert_eq!(None, target.username);
