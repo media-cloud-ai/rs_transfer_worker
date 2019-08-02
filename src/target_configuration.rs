@@ -1,20 +1,19 @@
+use std::io::{Error, ErrorKind};
+use std::str::FromStr;
+
 use amqp_worker::job::*;
 use amqp_worker::MessageError;
-
 use ftp::openssl::ssl::{SslContext, SslMethod};
 use ftp::types::FileType;
 use ftp::FtpError;
 use ftp::FtpStream;
-
 use rusoto_core::region::Region;
 use rusoto_core::request::HttpClient;
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{GetObjectRequest, S3Client, S3};
+use url::Url;
 
-use std::io::{Error, ErrorKind};
-use std::str::FromStr;
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ConfigurationType {
   Ftp,
   HttpResource,
@@ -39,6 +38,18 @@ pub struct TargetConfiguration {
 impl TargetConfiguration {
   pub fn new(job: &Job, target: &str) -> Result<Self, MessageError> {
     let path_parameter = format!("{}_path", target);
+
+    let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
+      let result = JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(format!(
+        "missing {} parameter",
+        path_parameter.replace("_", " ")
+      ));
+      MessageError::ProcessingError(result)
+    })?;
+
+    if let Ok(url) = Url::parse(path.as_str()) {
+      return TargetConfiguration::get_target_from_url(&url);
+    }
 
     let hostname = job
       .get_credential_parameter(&format!("{}_hostname", target))
@@ -109,14 +120,6 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .unwrap_or(false);
 
-    let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
-      let result = JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(format!(
-        "missing {} parameter",
-        path_parameter.replace("_", " ")
-      ));
-      MessageError::ProcessingError(result)
-    })?;
-
     Ok(TargetConfiguration {
       access_key,
       hostname,
@@ -131,7 +134,6 @@ impl TargetConfiguration {
     })
   }
 
-  #[cfg(test)]
   pub fn new_file(path: &str) -> Self {
     TargetConfiguration {
       hostname: None,
@@ -147,8 +149,18 @@ impl TargetConfiguration {
     }
   }
 
-  #[cfg(test)]
   pub fn new_ftp(hostname: &str, username: &str, password: &str, prefix: &str, path: &str) -> Self {
+    TargetConfiguration::new_ftp_with_ssl(hostname, username, password, prefix, path, false)
+  }
+
+  pub fn new_ftp_with_ssl(
+    hostname: &str,
+    username: &str,
+    password: &str,
+    prefix: &str,
+    path: &str,
+    ssl_enabled: bool,
+  ) -> Self {
     TargetConfiguration {
       hostname: Some(hostname.to_string()),
       port: 21,
@@ -159,11 +171,10 @@ impl TargetConfiguration {
       region: Region::default(),
       prefix: Some(prefix.to_string()),
       path: path.to_string(),
-      ssl_enabled: false,
+      ssl_enabled,
     }
   }
 
-  #[cfg(test)]
   pub fn new_s3(
     access_key: &str,
     secret_key: &str,
@@ -185,8 +196,11 @@ impl TargetConfiguration {
     }
   }
 
-  #[cfg(test)]
   pub fn new_http(path: &str) -> Self {
+    TargetConfiguration::new_http_with_ssl(path, false)
+  }
+
+  pub fn new_http_with_ssl(path: &str, ssl_enabled: bool) -> Self {
     TargetConfiguration {
       hostname: None,
       port: 0,
@@ -197,7 +211,87 @@ impl TargetConfiguration {
       region: Region::default(),
       prefix: None,
       path: path.to_string(),
-      ssl_enabled: false,
+      ssl_enabled,
+    }
+  }
+
+  fn get_target_from_url(url: &Url) -> Result<TargetConfiguration, MessageError> {
+    match url.scheme() {
+      "file" => Ok(TargetConfiguration::new_file(url.as_str())),
+      "http" => Ok(TargetConfiguration::new_http(url.as_str())),
+      "https" => Ok(TargetConfiguration::new_http_with_ssl(url.as_str(), true)),
+      "ftp" => {
+        if let (Some(hostname), Some(password)) = (url.host_str(), url.password()) {
+          Ok(TargetConfiguration::new_ftp(
+            hostname,
+            url.username(),
+            password,
+            "",
+            url.path(),
+          ))
+        } else {
+          Err(MessageError::RuntimeError(format!(
+            "Invalid FTP URL: {:?}",
+            url
+          )))
+        }
+      }
+      "sftp" => {
+        if let (Some(hostname), Some(password)) = (url.host_str(), url.password()) {
+          Ok(TargetConfiguration::new_ftp_with_ssl(
+            hostname,
+            url.username(),
+            password,
+            "",
+            url.path(),
+            true,
+          ))
+        } else {
+          Err(MessageError::RuntimeError(format!(
+            "Invalid SFTP URL: {:?}",
+            url
+          )))
+        }
+      }
+      "s3" => {
+        let region_str = TargetConfiguration::get_value_from_url_parameters(&url, "region")?;
+        let region = Region::from_str(region_str.as_str())
+          .map_err(|error| MessageError::RuntimeError(error.to_string()))?;
+
+        let access_key = TargetConfiguration::get_value_from_url_parameters(&url, "access_key")?;
+        let secret_key = TargetConfiguration::get_value_from_url_parameters(&url, "secret_key")?;
+
+        if let Some(hostname) = url.host_str() {
+          Ok(TargetConfiguration::new_s3(
+            access_key.as_str(),
+            secret_key.as_str(),
+            region,
+            hostname,
+            url.path(),
+          ))
+        } else {
+          Err(MessageError::RuntimeError(format!(
+            "Invalid S3 URL: {:?}",
+            url
+          )))
+        }
+      }
+      _ => Err(MessageError::RuntimeError(format!(
+        "Unsupported URL: {:?}",
+        url
+      ))),
+    }
+  }
+
+  fn get_value_from_url_parameters(url: &Url, key: &str) -> Result<String, MessageError> {
+    let parse_result = url.query_pairs().into_owned().find(|(k, _v)| k.eq(key));
+    if let Some((_key, value)) = parse_result {
+      Ok(value)
+    } else {
+      Err(MessageError::RuntimeError(format!(
+        "Cannot find {:?} into url: {:?}",
+        key, url
+      )))
     }
   }
 
@@ -260,4 +354,206 @@ impl TargetConfiguration {
     ))?;
     Ok(stream)
   }
+}
+
+#[test]
+pub fn get_value_from_url_parameters_test() {
+  let url1 = Url::parse("https://www.google.com").unwrap();
+  let result1 = TargetConfiguration::get_value_from_url_parameters(&url1, "search");
+  assert!(result1.is_err());
+
+  let url2 = Url::parse("https://www.google.com?search=hello").unwrap();
+  let result2 = TargetConfiguration::get_value_from_url_parameters(&url2, "search");
+  assert!(result2.is_ok());
+  assert_eq!("hello", result2.unwrap().as_str());
+
+  let url3 = Url::parse("https://www.google.com?page=23&search=hello").unwrap();
+  let result3 = TargetConfiguration::get_value_from_url_parameters(&url3, "search");
+  assert!(result3.is_ok());
+  assert_eq!("hello", result3.unwrap().as_str());
+
+  let result4 = TargetConfiguration::get_value_from_url_parameters(&url3, "page");
+  assert!(result4.is_ok());
+  assert_eq!("23", result4.unwrap().as_str());
+}
+
+#[test]
+pub fn get_target_from_url_test_file() {
+  let path = "file://path/to/local/file";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(path, target.path);
+  assert_eq!(false, target.ssl_enabled);
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(None, target.prefix);
+}
+
+#[test]
+pub fn get_target_from_url_test_http() {
+  let path = "http://www.google.com/";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(path, target.path);
+  assert_eq!(false, target.ssl_enabled);
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(None, target.prefix);
+}
+
+#[test]
+pub fn get_target_from_url_test_https() {
+  let path = "https://www.google.com/";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(path, target.path);
+  assert_eq!(true, target.ssl_enabled);
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(None, target.prefix);
+}
+
+#[test]
+pub fn get_target_from_url_test_ftp() {
+  let path = "ftp://username:password@hostname/folder/file";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(Some("hostname".to_string()), target.hostname);
+  assert_eq!(21, target.port);
+  assert_eq!(Some("username".to_string()), target.username);
+  assert_eq!(Some("password".to_string()), target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(Some("".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn get_target_from_url_test_sftp() {
+  let path = "sftp://username:password@hostname/folder/file";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(Some("hostname".to_string()), target.hostname);
+  assert_eq!(21, target.port);
+  assert_eq!(Some("username".to_string()), target.username);
+  assert_eq!(Some("password".to_string()), target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(Some("".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(true, target.ssl_enabled);
+}
+
+#[test]
+pub fn get_target_from_url_test_s3() {
+  let path = "s3://bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&url);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(Some("login".to_string()), target.access_key);
+  assert_eq!(Some("password".to_string()), target.secret_key);
+  assert_eq!(Region::EuCentral1, target.region);
+  assert_eq!(Some("bucket".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn new_target_from_url_test() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+        {
+          "id": "source_path",
+          "type": "string",
+          "value": "ftp://username:password@hostname/folder/file"
+        }
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+  let target = TargetConfiguration::new(&job, "source").unwrap();
+  assert_eq!(ConfigurationType::Ftp, target.get_type());
+  assert_eq!(Some("hostname".to_string()), target.hostname);
+  assert_eq!(21, target.port);
+  assert_eq!(Some("username".to_string()), target.username);
+  assert_eq!(Some("password".to_string()), target.password);
+  assert_eq!(None, target.access_key);
+  assert_eq!(None, target.secret_key);
+  assert_eq!(Region::default(), target.region);
+  assert_eq!(Some("".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn new_target_from_non_url_test() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+        {
+          "id": "source_path",
+          "type": "string",
+          "value": "/path/to/file"
+        },
+        {
+          "id": "source_hostname",
+          "type": "credential",
+          "value": "SOME_HOST_CREDENTIAL"
+        }
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+  let result = TargetConfiguration::new(&job, "source");
+  assert!(result.is_err());
+  let error = result.unwrap_err();
+  assert_eq!(error, MessageError::ProcessingError(
+    JobResult {
+      job_id: 123,
+      status: JobStatus::Error,
+      parameters: vec![
+        Parameter::StringParam {
+          id: "message".to_string(),
+          default: None,
+          value: Some("http://127.0.0.1:4000/api/sessions: error trying to connect: Connection refused (os error 111)".to_string())
+        }
+      ]
+    }
+  ));
 }

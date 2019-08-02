@@ -11,6 +11,7 @@ extern crate rusoto_credential;
 extern crate rusoto_s3;
 extern crate tokio;
 extern crate tokio_io;
+extern crate url;
 
 use amqp_worker::*;
 
