@@ -476,7 +476,7 @@ pub fn get_target_from_url_test_sftp() {
 
 #[test]
 pub fn get_target_from_url_test_s3() {
-  let path = "s3://bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
+  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&url);
   assert!(result.is_ok());
@@ -488,8 +488,8 @@ pub fn get_target_from_url_test_s3() {
   assert_eq!(Some("login".to_string()), target.access_key);
   assert_eq!(Some("password".to_string()), target.secret_key);
   assert_eq!(Region::EuCentral1, target.region);
-  assert_eq!(Some("bucket".to_string()), target.prefix);
-  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(Some("hostname".to_string()), target.prefix);
+  assert_eq!("/bucket/folder/file".to_string(), target.path);
   assert_eq!(false, target.ssl_enabled);
 }
 
