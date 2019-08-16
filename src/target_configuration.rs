@@ -21,7 +21,7 @@ pub enum ConfigurationType {
   S3Bucket,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TargetConfiguration {
   hostname: Option<String>,
   port: u16,
@@ -48,7 +48,7 @@ impl TargetConfiguration {
     })?;
 
     if let Ok(url) = Url::parse(path.as_str()) {
-      return TargetConfiguration::get_target_from_url(&url);
+      return TargetConfiguration::get_target_from_url(job, &url);
     }
 
     let hostname = job
@@ -215,7 +215,7 @@ impl TargetConfiguration {
     }
   }
 
-  fn get_target_from_url(url: &Url) -> Result<TargetConfiguration, MessageError> {
+  fn get_target_from_url(job: &Job, url: &Url) -> Result<TargetConfiguration, MessageError> {
     match url.scheme() {
       "file" => Ok(TargetConfiguration::new_file(url.as_str())),
       "http" => Ok(TargetConfiguration::new_http(url.as_str())),
@@ -230,10 +230,9 @@ impl TargetConfiguration {
             url.path(),
           ))
         } else {
-          Err(MessageError::RuntimeError(format!(
-            "Invalid FTP URL: {:?}",
-            url
-          )))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("Invalid FTP URL: {}", url));
+          Err(MessageError::ProcessingError(result))
         }
       }
       "sftp" => {
@@ -247,19 +246,22 @@ impl TargetConfiguration {
             true,
           ))
         } else {
-          Err(MessageError::RuntimeError(format!(
-            "Invalid SFTP URL: {:?}",
-            url
-          )))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("Invalid SFTP URL: {}", url));
+          Err(MessageError::ProcessingError(result))
         }
       }
       "s3" => {
-        let region_str = TargetConfiguration::get_value_from_url_parameters(&url, "region")?;
+        let region_str = TargetConfiguration::get_value_from_url_parameters(job, url, "region")?;
         let region = Region::from_str(region_str.as_str())
-          .map_err(|error| MessageError::RuntimeError(error.to_string()))?;
+          .map_err(|error| {
+            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+              .with_message(error.to_string());
+            MessageError::ProcessingError(result)
+          })?;
 
-        let access_key = TargetConfiguration::get_value_from_url_parameters(&url, "access_key")?;
-        let secret_key = TargetConfiguration::get_value_from_url_parameters(&url, "secret_key")?;
+        let access_key = TargetConfiguration::get_value_from_url_parameters(job, url, "access_key")?;
+        let secret_key = TargetConfiguration::get_value_from_url_parameters(job, url, "secret_key")?;
 
         if let Some(hostname) = url.host_str() {
           Ok(TargetConfiguration::new_s3(
@@ -270,29 +272,37 @@ impl TargetConfiguration {
             url.path(),
           ))
         } else {
-          Err(MessageError::RuntimeError(format!(
-            "Invalid S3 URL: {:?}",
-            url
-          )))
+          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+            .with_message(format!("Invalid S3 URL: {}", url));
+          Err(MessageError::ProcessingError(result))
         }
       }
-      _ => Err(MessageError::RuntimeError(format!(
-        "Unsupported URL: {:?}",
-        url
-      ))),
+      _ => {
+        let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+          .with_message(format!("Unsupported URL: {}", url));
+        Err(MessageError::ProcessingError(result))
+      }
     }
   }
 
-  fn get_value_from_url_parameters(url: &Url, key: &str) -> Result<String, MessageError> {
-    let parse_result = url.query_pairs().into_owned().find(|(k, _v)| k.eq(key));
-    if let Some((_key, value)) = parse_result {
-      Ok(value)
-    } else {
-      Err(MessageError::RuntimeError(format!(
-        "Cannot find {:?} into url: {:?}",
-        key, url
-      )))
-    }
+  fn get_value_from_url_parameters(job: &Job, url: &Url, reference_key: &str) -> Result<String, MessageError> {
+    url
+    .query_pairs()
+    .into_owned()
+    .find(|(key, _value)| key.eq(reference_key) || key.eq(&("credential_".to_string() + reference_key)))
+    .map(|(key, value)| {
+      if key.starts_with("credential_") {
+        let credential = Credential{key: value};
+        credential.request_value(job)
+      } else {
+        Ok(value)
+      }
+    })
+    .unwrap_or({
+      let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+        .with_message(format!("Cannot find {:?} into url: {}", reference_key, url));
+      Err(MessageError::ProcessingError(result))
+    })
   }
 
   pub fn get_type(&self) -> ConfigurationType {
@@ -358,34 +368,40 @@ impl TargetConfiguration {
 
 #[test]
 pub fn get_value_from_url_parameters_test() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
   let url1 = Url::parse("https://www.google.com").unwrap();
-  let result1 = TargetConfiguration::get_value_from_url_parameters(&url1, "search");
+  let result1 = TargetConfiguration::get_value_from_url_parameters(&job, &url1, "search");
   assert!(result1.is_err());
 
   let url2 = Url::parse("https://www.google.com?search=hello").unwrap();
-  let result2 = TargetConfiguration::get_value_from_url_parameters(&url2, "search");
+  let result2 = TargetConfiguration::get_value_from_url_parameters(&job, &url2, "search");
   assert!(result2.is_ok());
   assert_eq!("hello", result2.unwrap().as_str());
 
   let url3 = Url::parse("https://www.google.com?page=23&search=hello").unwrap();
-  let result3 = TargetConfiguration::get_value_from_url_parameters(&url3, "search");
+  let result3 = TargetConfiguration::get_value_from_url_parameters(&job, &url3, "search");
   assert!(result3.is_ok());
   assert_eq!("hello", result3.unwrap().as_str());
 
-  let result4 = TargetConfiguration::get_value_from_url_parameters(&url3, "page");
+  let result4 = TargetConfiguration::get_value_from_url_parameters(&job, &url3, "page");
   assert!(result4.is_ok());
   assert_eq!("23", result4.unwrap().as_str());
 }
 
-#[test]
-pub fn get_target_from_url_test_file() {
-  let path = "file://path/to/local/file";
-  let url = Url::parse(path).unwrap();
-  let result = TargetConfiguration::get_target_from_url(&url);
+#[cfg(test)]
+fn validate_target(result: Result<TargetConfiguration, MessageError>, path: &str, ssl_enabled: bool) {
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(path, target.path);
-  assert_eq!(false, target.ssl_enabled);
+  assert_eq!(ssl_enabled, target.ssl_enabled);
   assert_eq!(None, target.hostname);
   assert_eq!(0, target.port);
   assert_eq!(None, target.username);
@@ -394,51 +410,73 @@ pub fn get_target_from_url_test_file() {
   assert_eq!(None, target.secret_key);
   assert_eq!(Region::default(), target.region);
   assert_eq!(None, target.prefix);
+}
+
+#[test]
+pub fn get_target_from_url_test_file() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
+  let path = "file://path/to/local/file";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
+  validate_target(result, path, false);
 }
 
 #[test]
 pub fn get_target_from_url_test_http() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
   let path = "http://www.google.com/";
   let url = Url::parse(path).unwrap();
-  let result = TargetConfiguration::get_target_from_url(&url);
-  assert!(result.is_ok());
-  let target = result.unwrap();
-  assert_eq!(path, target.path);
-  assert_eq!(false, target.ssl_enabled);
-  assert_eq!(None, target.hostname);
-  assert_eq!(0, target.port);
-  assert_eq!(None, target.username);
-  assert_eq!(None, target.password);
-  assert_eq!(None, target.access_key);
-  assert_eq!(None, target.secret_key);
-  assert_eq!(Region::default(), target.region);
-  assert_eq!(None, target.prefix);
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
+  validate_target(result, path, false);
 }
 
 #[test]
 pub fn get_target_from_url_test_https() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
   let path = "https://www.google.com/";
   let url = Url::parse(path).unwrap();
-  let result = TargetConfiguration::get_target_from_url(&url);
-  assert!(result.is_ok());
-  let target = result.unwrap();
-  assert_eq!(path, target.path);
-  assert_eq!(true, target.ssl_enabled);
-  assert_eq!(None, target.hostname);
-  assert_eq!(0, target.port);
-  assert_eq!(None, target.username);
-  assert_eq!(None, target.password);
-  assert_eq!(None, target.access_key);
-  assert_eq!(None, target.secret_key);
-  assert_eq!(Region::default(), target.region);
-  assert_eq!(None, target.prefix);
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
+  validate_target(result, path, true);
 }
 
 #[test]
 pub fn get_target_from_url_test_ftp() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
   let path = "ftp://username:password@hostname/folder/file";
   let url = Url::parse(path).unwrap();
-  let result = TargetConfiguration::get_target_from_url(&url);
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(Some("hostname".to_string()), target.hostname);
@@ -455,9 +493,18 @@ pub fn get_target_from_url_test_ftp() {
 
 #[test]
 pub fn get_target_from_url_test_sftp() {
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
   let path = "sftp://username:password@hostname/folder/file";
   let url = Url::parse(path).unwrap();
-  let result = TargetConfiguration::get_target_from_url(&url);
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(Some("hostname".to_string()), target.hostname);
@@ -474,9 +521,18 @@ pub fn get_target_from_url_test_sftp() {
 
 #[test]
 pub fn get_target_from_url_test_s3() {
-  let path = "s3://bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
+  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
   let url = Url::parse(path).unwrap();
-  let result = TargetConfiguration::get_target_from_url(&url);
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(None, target.hostname);
@@ -486,8 +542,65 @@ pub fn get_target_from_url_test_s3() {
   assert_eq!(Some("login".to_string()), target.access_key);
   assert_eq!(Some("password".to_string()), target.secret_key);
   assert_eq!(Region::EuCentral1, target.region);
-  assert_eq!(Some("bucket".to_string()), target.prefix);
-  assert_eq!("/folder/file".to_string(), target.path);
+  assert_eq!(Some("hostname".to_string()), target.prefix);
+  assert_eq!("/bucket/folder/file".to_string(), target.path);
+  assert_eq!(false, target.ssl_enabled);
+}
+
+#[test]
+pub fn get_target_from_url_test_s3_with_credentials() {
+  std::env::set_var("BACKEND_HOSTNAME", mockito::server_url());
+  use mockito::mock;
+
+  let _m = mock("POST", "/sessions")
+    .with_header("content-type", "application/json")
+    .with_body(r#"{"access_token": "fake_access_token"}"#)
+    .create();
+
+  let _m = mock("GET", "/credentials/MEDIAIO_AWS_ACCESS_KEY")
+    .with_header("content-type", "application/json")
+    .with_body(r#"{"data": {
+      "id": 666,
+      "key": "MEDIAIO_AWS_ACCESS_KEY",
+      "value": "AKAIMEDIAIO",
+      "inserted_at": "today"
+    }}"#)
+    .create();
+
+  let _m = mock("GET", "/credentials/MEDIAIO_AWS_SECRET_KEY")
+    .with_header("content-type", "application/json")
+    .with_body(r#"{"data": {
+      "id": 666,
+      "key": "MEDIAIO_AWS_SECRET_KEY",
+      "value": "SECRETKEYFORMEDIAIO",
+      "inserted_at": "today"
+    }}"#)
+    .create();
+
+  let message = r#"
+    {
+      "job_id": 123,
+      "parameters": [
+      ]
+    }
+  "#;
+  let job = Job::new(message).unwrap();
+
+  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY";
+  let url = Url::parse(path).unwrap();
+  let result = TargetConfiguration::get_target_from_url(&job, &url);
+  println!("{:?}", result);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(None, target.hostname);
+  assert_eq!(0, target.port);
+  assert_eq!(None, target.username);
+  assert_eq!(None, target.password);
+  assert_eq!(Some("AKAIMEDIAIO".to_string()), target.access_key);
+  assert_eq!(Some("SECRETKEYFORMEDIAIO".to_string()), target.secret_key);
+  assert_eq!(Region::EuCentral1, target.region);
+  assert_eq!(Some("hostname".to_string()), target.prefix);
+  assert_eq!("/bucket/folder/file".to_string(), target.path);
   assert_eq!(false, target.ssl_enabled);
 }
 
@@ -522,6 +635,27 @@ pub fn new_target_from_url_test() {
 
 #[test]
 pub fn new_target_from_non_url_test() {
+  use mockito::mock;
+  use rusoto_core::Region::UsEast1;
+
+  std::env::set_var("BACKEND_HOSTNAME", mockito::server_url());
+
+
+  let _m = mock("POST", "/sessions")
+    .with_header("content-type", "application/json")
+    .with_body(r#"{"access_token": "fake_access_token"}"#)
+    .create();
+
+  let _m = mock("GET", "/credentials/SOME_HOST_CREDENTIAL")
+    .with_header("content-type", "application/json")
+    .with_body(r#"{"data": {
+      "id": 666,
+      "key": "SOME_HOST_CREDENTIAL",
+      "value": "https://s3.media-io.com",
+      "inserted_at": "today"
+    }}"#)
+    .create();
+
   let message = r#"
     {
       "job_id": 123,
@@ -541,19 +675,19 @@ pub fn new_target_from_non_url_test() {
   "#;
   let job = Job::new(message).unwrap();
   let result = TargetConfiguration::new(&job, "source");
-  assert!(result.is_err());
-  let error = result.unwrap_err();
-  assert_eq!(error, MessageError::ProcessingError(
-    JobResult {
-      job_id: 123,
-      status: JobStatus::Error,
-      parameters: vec![
-        Parameter::StringParam {
-          id: "message".to_string(),
-          default: None,
-          value: Some("http://127.0.0.1:4000/api/sessions: error trying to connect: Connection refused (os error 111)".to_string())
-        }
-      ]
-    }
-  ));
+  println!("{:?}", result);
+  assert!(result.is_ok());
+  let target = result.unwrap();
+  assert_eq!(target, TargetConfiguration {
+    hostname: Some("https://s3.media-io.com".to_string()),
+    port: 21,
+    username: None,
+    password: None,
+    access_key: None,
+    secret_key: None,
+    region: UsEast1,
+    prefix: None,
+    path: "/path/to/file".to_string(),
+    ssl_enabled: false
+  });
 }
