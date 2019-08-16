@@ -292,7 +292,7 @@ impl TargetConfiguration {
     .find(|(key, _value)| key.eq(reference_key) || key.eq(&("credential_".to_string() + reference_key)))
     .map(|(key, value)| {
       if key.starts_with("credential_") {
-        let credential = Credential{key};
+        let credential = Credential{key: value};
         credential.request_value(job)
       } else {
         Ok(value)
@@ -557,21 +557,21 @@ pub fn get_target_from_url_test_s3_with_credentials() {
     .with_body(r#"{"access_token": "fake_access_token"}"#)
     .create();
 
-  let _m = mock("GET", "/credentials/credential_access_key")
+  let _m = mock("GET", "/credentials/MEDIAIO_AWS_ACCESS_KEY")
     .with_header("content-type", "application/json")
     .with_body(r#"{"data": {
       "id": 666,
-      "key": "credential_access_key",
+      "key": "MEDIAIO_AWS_ACCESS_KEY",
       "value": "AKAIMEDIAIO",
       "inserted_at": "today"
     }}"#)
     .create();
 
-  let _m = mock("GET", "/credentials/credential_secret_key")
+  let _m = mock("GET", "/credentials/MEDIAIO_AWS_SECRET_KEY")
     .with_header("content-type", "application/json")
     .with_body(r#"{"data": {
       "id": 666,
-      "key": "credential_secret_key",
+      "key": "MEDIAIO_AWS_SECRET_KEY",
       "value": "SECRETKEYFORMEDIAIO",
       "inserted_at": "today"
     }}"#)
@@ -586,7 +586,7 @@ pub fn get_target_from_url_test_s3_with_credentials() {
   "#;
   let job = Job::new(message).unwrap();
 
-  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&credential_access_key=LOGIN_KEY&credential_secret_key=PASSWORD_KEY";
+  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&job, &url);
   println!("{:?}", result);
