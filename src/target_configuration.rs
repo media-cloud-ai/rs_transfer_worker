@@ -284,15 +284,17 @@ impl TargetConfiguration {
   }
 
   fn get_value_from_url_parameters(url: &Url, key: &str) -> Result<String, MessageError> {
-    let parse_result = url.query_pairs().into_owned().find(|(k, _v)| k.eq(key));
-    if let Some((_key, value)) = parse_result {
-      Ok(value)
-    } else {
+    url
+    .query_pairs()
+    .into_owned()
+    .find(|(k, _v)| k.eq(key))
+    .map(|(_k, value)| Ok(value))
+    .unwrap_or(
       Err(MessageError::RuntimeError(format!(
         "Cannot find {:?} into url: {:?}",
         key, url
       )))
-    }
+    )
   }
 
   pub fn get_type(&self) -> ConfigurationType {
@@ -551,7 +553,7 @@ pub fn new_target_from_non_url_test() {
         Parameter::StringParam {
           id: "message".to_string(),
           default: None,
-          value: Some("http://127.0.0.1:4000/api/sessions: error trying to connect: Connection refused (os error 111)".to_string())
+          value: Some("http://127.0.0.1:4000/api/sessions: error trying to connect: Connection refused (os error 61)".to_string())
         }
       ]
     }
