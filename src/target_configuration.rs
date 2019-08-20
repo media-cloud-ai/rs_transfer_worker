@@ -1,16 +1,18 @@
 use std::io::{Error, ErrorKind};
 use std::str::FromStr;
 
-use amqp_worker::job::*;
-use amqp_worker::MessageError;
-use ftp::openssl::ssl::{SslContext, SslMethod};
-use ftp::types::FileType;
-use ftp::FtpError;
-use ftp::FtpStream;
-use rusoto_core::region::Region;
-use rusoto_core::request::HttpClient;
+use amqp_worker::{job::*, MessageError};
+use ftp::{
+  openssl::ssl::{SslContext, SslMethod},
+  types::FileType,
+  FtpError, FtpStream,
+};
+use rusoto_core::{region::Region, request::HttpClient};
 use rusoto_credential::StaticProvider;
-use rusoto_s3::{GetObjectRequest, S3Client, S3};
+use rusoto_s3::{
+  CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
+  CreateMultipartUploadRequest, GetObjectRequest, S3Client, UploadPartRequest, S3,
+};
 use url::Url;
 
 #[derive(Debug, PartialEq)]
@@ -80,11 +82,18 @@ impl TargetConfiguration {
       .get_credential_parameter(&format!("{}_region", target))
       .map(|key| key.request_value(job))
       .map_or(Ok(Region::default()), |r| {
-        Region::from_str(&r.unwrap()).map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-            .with_message(format!("unable to match AWS region: {}", e));
-          MessageError::ProcessingError(result)
-        })
+        if let Some(h) = &hostname {
+          Ok(Region::Custom {
+            name: r.unwrap(),
+            endpoint: h.clone(),
+          })
+        } else {
+          Region::from_str(&r.unwrap()).map_err(|e| {
+            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+              .with_message(format!("unable to match AWS region: {}", e));
+            MessageError::ProcessingError(result)
+          })
+        }
       })?;
 
     let prefix = job
@@ -252,16 +261,18 @@ impl TargetConfiguration {
         }
       }
       "s3" => {
+        // let hostname_str = TargetConfiguration::get_value_from_url_parameters(job, url, "hostname")?;
         let region_str = TargetConfiguration::get_value_from_url_parameters(job, url, "region")?;
-        let region = Region::from_str(region_str.as_str())
-          .map_err(|error| {
-            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-              .with_message(error.to_string());
-            MessageError::ProcessingError(result)
-          })?;
+        let region = Region::from_str(region_str.as_str()).map_err(|error| {
+          let result =
+            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(error.to_string());
+          MessageError::ProcessingError(result)
+        })?;
 
-        let access_key = TargetConfiguration::get_value_from_url_parameters(job, url, "access_key")?;
-        let secret_key = TargetConfiguration::get_value_from_url_parameters(job, url, "secret_key")?;
+        let access_key =
+          TargetConfiguration::get_value_from_url_parameters(job, url, "access_key")?;
+        let secret_key =
+          TargetConfiguration::get_value_from_url_parameters(job, url, "secret_key")?;
 
         if let Some(hostname) = url.host_str() {
           Ok(TargetConfiguration::new_s3(
@@ -285,24 +296,30 @@ impl TargetConfiguration {
     }
   }
 
-  fn get_value_from_url_parameters(job: &Job, url: &Url, reference_key: &str) -> Result<String, MessageError> {
+  fn get_value_from_url_parameters(
+    job: &Job,
+    url: &Url,
+    reference_key: &str,
+  ) -> Result<String, MessageError> {
     url
-    .query_pairs()
-    .into_owned()
-    .find(|(key, _value)| key.eq(reference_key) || key.eq(&("credential_".to_string() + reference_key)))
-    .map(|(key, value)| {
-      if key.starts_with("credential_") {
-        let credential = Credential{key: value};
-        credential.request_value(job)
-      } else {
-        Ok(value)
-      }
-    })
-    .unwrap_or({
-      let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-        .with_message(format!("Cannot find {:?} into url: {}", reference_key, url));
-      Err(MessageError::ProcessingError(result))
-    })
+      .query_pairs()
+      .into_owned()
+      .find(|(key, _value)| {
+        key.eq(reference_key) || key.eq(&("credential_".to_string() + reference_key))
+      })
+      .map(|(key, value)| {
+        if key.starts_with("credential_") {
+          let credential = Credential { key: value };
+          credential.request_value(job)
+        } else {
+          Ok(value)
+        }
+      })
+      .unwrap_or({
+        let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
+          .with_message(format!("Cannot find {:?} into url: {}", reference_key, url));
+        Err(MessageError::ProcessingError(result))
+      })
   }
 
   pub fn get_type(&self) -> ConfigurationType {
@@ -321,7 +338,15 @@ impl TargetConfiguration {
   }
 
   pub fn get_ftp_stream(&self) -> Result<FtpStream, FtpError> {
-    let mut ftp_stream = FtpStream::connect((self.hostname.clone().unwrap().as_str(), self.port))?;
+    let hostname = if let Some(hostname) = &self.hostname {
+      hostname
+    } else {
+      return Err(FtpError::InvalidResponse(
+        "Missing hostname to access to FTP content".to_string(),
+      ));
+    };
+
+    let mut ftp_stream = FtpStream::connect((hostname.as_str(), self.port))?;
     if self.ssl_enabled {
       let builder = SslContext::builder(SslMethod::tls()).map_err(|_e| {
         FtpError::ConnectionError(Error::new(ErrorKind::Other, "unable to build SSL context"))
@@ -339,23 +364,23 @@ impl TargetConfiguration {
     Ok(ftp_stream)
   }
 
-  pub fn get_s3_stream(&self) -> Result<rusoto_core::ByteStream, FtpError> {
-    let client = S3Client::new_with(
-      HttpClient::new().expect("Unable to create HTTP client"),
-      StaticProvider::new_minimal(
-        self.access_key.clone().unwrap(),
-        self.secret_key.clone().unwrap(),
-      ),
-      self.region.clone(),
-    );
+  pub fn get_s3_download_stream(&self) -> Result<rusoto_core::ByteStream, FtpError> {
+    let prefix = if let Some(prefix) = &self.prefix {
+      prefix.to_string()
+    } else {
+      return Err(FtpError::InvalidResponse(
+        "Missing prefix (used as bucket identifier) to access to S3 content".to_string(),
+      ));
+    };
 
     let request = GetObjectRequest {
-      bucket: self.prefix.clone().unwrap(),
+      bucket: prefix,
       key: self.path.clone(),
       ..Default::default()
     };
 
-    let object = client
+    let object = self
+      .get_s3_client()?
       .get_object(request)
       .sync()
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
@@ -363,6 +388,113 @@ impl TargetConfiguration {
       "No retrieved object data to access.".to_string(),
     ))?;
     Ok(stream)
+  }
+
+  pub fn start_multi_part_s3_upload(&self) -> Result<String, FtpError> {
+    let request = CreateMultipartUploadRequest {
+      bucket: self.get_s3_bucket()?,
+      key: self.path.clone(),
+      ..Default::default()
+    };
+
+    let object = self
+      .get_s3_client()?
+      .create_multipart_upload(request)
+      .sync()
+      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+
+    if let Some(upload_id) = object.upload_id {
+      Ok(upload_id)
+    } else {
+      Err(FtpError::ConnectionError(Error::new(
+        ErrorKind::ConnectionRefused,
+        "error",
+      )))
+    }
+  }
+
+  pub fn upload_s3_part(
+    &self,
+    upload_id: &str,
+    part_number: i64,
+    data: Vec<u8>,
+  ) -> Result<CompletedPart, FtpError> {
+    let request = UploadPartRequest {
+      body: Some(rusoto_core::ByteStream::from(data)),
+      bucket: self.get_s3_bucket()?,
+      key: self.path.clone(),
+      upload_id: upload_id.to_string(),
+      part_number,
+      ..Default::default()
+    };
+
+    let object = self
+      .get_s3_client()?
+      .upload_part(request)
+      .sync()
+      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+
+    Ok(CompletedPart {
+      e_tag: object.e_tag.clone(),
+      part_number: Some(part_number),
+    })
+  }
+
+  pub fn complete_s3_upload(
+    &self,
+    upload_id: String,
+    parts: Vec<CompletedPart>,
+  ) -> Result<(), FtpError> {
+    let request = CompleteMultipartUploadRequest {
+      bucket: self.get_s3_bucket()?,
+      key: self.path.clone(),
+      upload_id,
+      multipart_upload: Some(CompletedMultipartUpload { parts: Some(parts) }),
+      ..Default::default()
+    };
+
+    self
+      .get_s3_client()?
+      .complete_multipart_upload(request)
+      .sync()
+      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+
+    Ok(())
+  }
+
+  fn get_s3_client(&self) -> Result<S3Client, FtpError> {
+    let access_key = if let Some(access_key) = &self.access_key {
+      access_key.to_string()
+    } else {
+      return Err(FtpError::InvalidResponse(
+        "Missing access_key to access to S3 content".to_string(),
+      ));
+    };
+
+    let secret_key = if let Some(secret_key) = &self.secret_key {
+      secret_key.to_string()
+    } else {
+      return Err(FtpError::InvalidResponse(
+        "Missing secret_key to access to S3 content".to_string(),
+      ));
+    };
+
+    Ok(S3Client::new_with(
+      HttpClient::new()
+        .map_err(|_| FtpError::InvalidResponse("Unable to create HTTP client".to_string()))?,
+      StaticProvider::new_minimal(access_key, secret_key),
+      self.region.clone(),
+    ))
+  }
+
+  fn get_s3_bucket(&self) -> Result<String, FtpError> {
+    if let Some(prefix) = &self.prefix {
+      Ok(prefix.to_string())
+    } else {
+      Err(FtpError::InvalidResponse(
+        "Missing prefix (used as bucket identifier) to access to S3 content".to_string(),
+      ))
+    }
   }
 }
 
@@ -397,7 +529,11 @@ pub fn get_value_from_url_parameters_test() {
 }
 
 #[cfg(test)]
-fn validate_target(result: Result<TargetConfiguration, MessageError>, path: &str, ssl_enabled: bool) {
+fn validate_target(
+  result: Result<TargetConfiguration, MessageError>,
+  path: &str,
+  ssl_enabled: bool,
+) {
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(path, target.path);
@@ -530,7 +666,8 @@ pub fn get_target_from_url_test_s3() {
   "#;
   let job = Job::new(message).unwrap();
 
-  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
+  let path =
+    "s3://hostname/bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&job, &url);
   assert!(result.is_ok());
@@ -559,22 +696,26 @@ pub fn get_target_from_url_test_s3_with_credentials() {
 
   let _m = mock("GET", "/credentials/MEDIAIO_AWS_ACCESS_KEY")
     .with_header("content-type", "application/json")
-    .with_body(r#"{"data": {
+    .with_body(
+      r#"{"data": {
       "id": 666,
       "key": "MEDIAIO_AWS_ACCESS_KEY",
       "value": "AKAIMEDIAIO",
       "inserted_at": "today"
-    }}"#)
+    }}"#,
+    )
     .create();
 
   let _m = mock("GET", "/credentials/MEDIAIO_AWS_SECRET_KEY")
     .with_header("content-type", "application/json")
-    .with_body(r#"{"data": {
+    .with_body(
+      r#"{"data": {
       "id": 666,
       "key": "MEDIAIO_AWS_SECRET_KEY",
       "value": "SECRETKEYFORMEDIAIO",
       "inserted_at": "today"
-    }}"#)
+    }}"#,
+    )
     .create();
 
   let message = r#"
@@ -640,7 +781,6 @@ pub fn new_target_from_non_url_test() {
 
   std::env::set_var("BACKEND_HOSTNAME", mockito::server_url());
 
-
   let _m = mock("POST", "/sessions")
     .with_header("content-type", "application/json")
     .with_body(r#"{"access_token": "fake_access_token"}"#)
@@ -648,12 +788,14 @@ pub fn new_target_from_non_url_test() {
 
   let _m = mock("GET", "/credentials/SOME_HOST_CREDENTIAL")
     .with_header("content-type", "application/json")
-    .with_body(r#"{"data": {
+    .with_body(
+      r#"{"data": {
       "id": 666,
       "key": "SOME_HOST_CREDENTIAL",
       "value": "https://s3.media-io.com",
       "inserted_at": "today"
-    }}"#)
+    }}"#,
+    )
     .create();
 
   let message = r#"
@@ -678,16 +820,19 @@ pub fn new_target_from_non_url_test() {
   println!("{:?}", result);
   assert!(result.is_ok());
   let target = result.unwrap();
-  assert_eq!(target, TargetConfiguration {
-    hostname: Some("https://s3.media-io.com".to_string()),
-    port: 21,
-    username: None,
-    password: None,
-    access_key: None,
-    secret_key: None,
-    region: UsEast1,
-    prefix: None,
-    path: "/path/to/file".to_string(),
-    ssl_enabled: false
-  });
+  assert_eq!(
+    target,
+    TargetConfiguration {
+      hostname: Some("https://s3.media-io.com".to_string()),
+      port: 21,
+      username: None,
+      password: None,
+      access_key: None,
+      secret_key: None,
+      region: UsEast1,
+      prefix: None,
+      path: "/path/to/file".to_string(),
+      ssl_enabled: false
+    }
+  );
 }

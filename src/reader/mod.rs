@@ -9,7 +9,7 @@ pub use http_reader::HttpReader;
 pub use s3_reader::S3Reader;
 
 #[test]
-fn tranfer_ftp() {
+fn transfer_ftp() {
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
@@ -43,7 +43,7 @@ fn tranfer_ftp() {
 }
 
 #[test]
-fn tranfer_s3() {
+fn transfer_s3() {
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
@@ -60,7 +60,10 @@ fn tranfer_s3() {
   let src_conf = TargetConfiguration::new_s3(
     &access_key,
     &secret_key,
-    Region::EuCentral1,
+    Region::Custom {
+      name: "us-east-1".to_string(),
+      endpoint: "s3.media-io.com".to_string(),
+    },
     &bucket,
     &filename,
   );
@@ -75,7 +78,7 @@ fn tranfer_s3() {
 }
 
 #[test]
-fn tranfer_http() {
+fn transfer_http() {
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
