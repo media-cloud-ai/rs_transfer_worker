@@ -20,7 +20,7 @@ impl S3Reader {
   where
     F: (Fn(&mut dyn Read) -> Result<(), FtpError>) + Send + Sync + 'static,
   {
-    let s3_byte_stream = self.target.get_s3_stream()?;
+    let s3_byte_stream = self.target.get_s3_download_stream()?;
     let async_read = s3_byte_stream.into_async_read();
 
     struct ByteStream<R>(R);
