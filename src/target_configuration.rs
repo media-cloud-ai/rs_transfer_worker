@@ -373,16 +373,8 @@ impl TargetConfiguration {
   }
 
   pub fn get_s3_download_stream(&self) -> Result<rusoto_core::ByteStream, FtpError> {
-    let prefix = if let Some(prefix) = &self.prefix {
-      prefix.to_string()
-    } else {
-      return Err(FtpError::InvalidResponse(
-        "Missing prefix (used as bucket identifier) to access to S3 content".to_string(),
-      ));
-    };
-
     let request = GetObjectRequest {
-      bucket: prefix,
+      bucket: self.get_s3_bucket()?,
       key: self.path.clone(),
       ..Default::default()
     };
