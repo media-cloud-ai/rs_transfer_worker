@@ -261,13 +261,21 @@ impl TargetConfiguration {
         }
       }
       "s3" => {
-        // let hostname_str = TargetConfiguration::get_value_from_url_parameters(job, url, "hostname")?;
         let region_str = TargetConfiguration::get_value_from_url_parameters(job, url, "region")?;
-        let region = Region::from_str(region_str.as_str()).map_err(|error| {
-          let result =
-            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(error.to_string());
-          MessageError::ProcessingError(result)
-        })?;
+
+        let region =
+          if let Ok(hostname_str) = TargetConfiguration::get_value_from_url_parameters(job, url, "hostname") {
+            Region::Custom{
+              name: region_str,
+              endpoint: hostname_str
+            }
+          } else {
+            Region::from_str(region_str.as_str()).map_err(|error| {
+              let result =
+                JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(error.to_string());
+              MessageError::ProcessingError(result)
+            })?
+          };
 
         let access_key =
           TargetConfiguration::get_value_from_url_parameters(job, url, "access_key")?;
