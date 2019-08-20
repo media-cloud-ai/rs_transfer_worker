@@ -263,19 +263,20 @@ impl TargetConfiguration {
       "s3" => {
         let region_str = TargetConfiguration::get_value_from_url_parameters(job, url, "region")?;
 
-        let region =
-          if let Ok(hostname_str) = TargetConfiguration::get_value_from_url_parameters(job, url, "hostname") {
-            Region::Custom{
-              name: region_str,
-              endpoint: hostname_str
-            }
-          } else {
-            Region::from_str(region_str.as_str()).map_err(|error| {
-              let result =
-                JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(error.to_string());
-              MessageError::ProcessingError(result)
-            })?
-          };
+        let region = if let Ok(hostname_str) =
+          TargetConfiguration::get_value_from_url_parameters(job, url, "hostname")
+        {
+          Region::Custom {
+            name: region_str,
+            endpoint: hostname_str,
+          }
+        } else {
+          Region::from_str(region_str.as_str()).map_err(|error| {
+            let result =
+              JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(error.to_string());
+            MessageError::ProcessingError(result)
+          })?
+        };
 
         let access_key =
           TargetConfiguration::get_value_from_url_parameters(job, url, "access_key")?;
@@ -667,7 +668,7 @@ pub fn get_target_from_url_test_s3() {
   let job = Job::new(message).unwrap();
 
   let path =
-    "s3://hostname/bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password";
+    "s3://bucket/folder/file?region=eu-central-1&access_key=login&secret_key=password&hostname=hostname";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&job, &url);
   assert!(result.is_ok());
@@ -678,9 +679,15 @@ pub fn get_target_from_url_test_s3() {
   assert_eq!(None, target.password);
   assert_eq!(Some("login".to_string()), target.access_key);
   assert_eq!(Some("password".to_string()), target.secret_key);
-  assert_eq!(Region::EuCentral1, target.region);
-  assert_eq!(Some("hostname".to_string()), target.prefix);
-  assert_eq!("/bucket/folder/file".to_string(), target.path);
+  assert_eq!(
+    Region::Custom {
+      name: "eu-central-1".to_string(),
+      endpoint: "hostname".to_string()
+    },
+    target.region
+  );
+  assert_eq!(Some("bucket".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
   assert_eq!(false, target.ssl_enabled);
 }
 
@@ -727,7 +734,7 @@ pub fn get_target_from_url_test_s3_with_credentials() {
   "#;
   let job = Job::new(message).unwrap();
 
-  let path = "s3://hostname/bucket/folder/file?region=eu-central-1&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY";
+  let path = "s3://bucket/folder/file?region=eu-central-1&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY&hostname=hostname";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&job, &url);
   println!("{:?}", result);
@@ -739,9 +746,15 @@ pub fn get_target_from_url_test_s3_with_credentials() {
   assert_eq!(None, target.password);
   assert_eq!(Some("AKAIMEDIAIO".to_string()), target.access_key);
   assert_eq!(Some("SECRETKEYFORMEDIAIO".to_string()), target.secret_key);
-  assert_eq!(Region::EuCentral1, target.region);
-  assert_eq!(Some("hostname".to_string()), target.prefix);
-  assert_eq!("/bucket/folder/file".to_string(), target.path);
+  assert_eq!(
+    Region::Custom {
+      name: "eu-central-1".to_string(),
+      endpoint: "hostname".to_string()
+    },
+    target.region
+  );
+  assert_eq!(Some("bucket".to_string()), target.prefix);
+  assert_eq!("/folder/file".to_string(), target.path);
   assert_eq!(false, target.ssl_enabled);
 }
 
