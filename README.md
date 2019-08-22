@@ -11,4 +11,4 @@
 
 - [x] Write local file
 - [x] Upload FTP file
-- [ ] Upload S3 file
+- [x] Upload S3 file
