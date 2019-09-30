@@ -86,7 +86,8 @@ The command `make docker-build` will build an image named `mediacloudai/rdf_work
 
 The command `make push-docker-registry` will logged in and push the built image in the official docker registry. The login must be set with the following environment variables:
 
-| Variable name           | Default value              | Description                                      |
-|-------------------------|----------------------------|--------------------------------------------------|
-| `DOCKER_REGISTRY_LOGIN` |                            | User name used to connect to the docker registry |
-| `DOCKER_REGISTRY_PWD`   |                            | Password used to connect to the docker registry  |
+| Variable name           | Default value              | Description                                                  |
+|-------------------------|----------------------------|--------------------------------------------------------------|
+| `DOCKER_REGISTRY_LOGIN` |                            | User name used to connect to the docker registry.            |
+| `DOCKER_REGISTRY_PWD`   |                            | Password used to connect to the docker registry.             |
+| `RUSTTOOLS_DOCKER_IMG`  |                            | Name of RUST image containing CLIPPY, TARPAULIN and RUSTFMT. |
