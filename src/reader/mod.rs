@@ -44,6 +44,7 @@ fn transfer_ftp() {
 
 #[test]
 fn transfer_s3() {
+  use amqp_worker::job::Job;
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
@@ -68,7 +69,12 @@ fn transfer_s3() {
     &filename,
   );
 
-  let mut reader = S3Reader::new(src_conf);
+  let job = Job {
+    job_id: 666,
+    parameters: vec![],
+  };
+
+  let mut reader = S3Reader::new(src_conf, &job);
   let dst_conf = TargetConfiguration::new_file("/tmp/transfer_test_s3.raw");
   let mut writer = FileStreamWriter::new(dst_conf);
   writer.open().unwrap();
@@ -79,12 +85,18 @@ fn transfer_s3() {
 
 #[test]
 fn transfer_http() {
+  use amqp_worker::job::Job;
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
 
+  let job = Job {
+    job_id: 666,
+    parameters: vec![],
+  };
+
   let src_conf = TargetConfiguration::new_http("https://media-io.com");
-  let mut reader = HttpReader::new(src_conf);
+  let mut reader = HttpReader::new(src_conf, &job);
   let dst_conf = TargetConfiguration::new_file("/tmp/transfer_test_http.raw");
   let mut writer = FileStreamWriter::new(dst_conf);
   writer.open().unwrap();

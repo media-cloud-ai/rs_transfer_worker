@@ -8,7 +8,7 @@ authors = [
 edition = "2018"
 
 [dependencies]
-amqp_worker = { version = "0.5.7" }
+amqp_worker = { version = "0.5.9" }
 bytes = "0.4.12"
 ftp = { version = "3.0.1", features = ["secure"] }
 futures = "0.1.28"

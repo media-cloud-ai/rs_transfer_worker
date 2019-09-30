@@ -77,7 +77,7 @@ dependencies = [
 
 [[package]]
 name = "amqp_worker"
-version = "0.5.7"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "amq-protocol-types 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2204,7 +2204,7 @@ dependencies = [
 name = "tranfer_worker"
 version = "0.1.1"
 dependencies = [
- "amqp_worker 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "amqp_worker 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "ftp 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2449,7 +2449,7 @@ dependencies = [
 "checksum amq-protocol-tcp 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "af951a914fde73cfb776b1080f1f51c08ca9a3fe11fc607851fc536e3d1de6c7"
 "checksum amq-protocol-types 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "25b297ed79bc12190f3d873d893f640f356a528c48d3f0add28a2b6caa1dcba1"
 "checksum amq-protocol-uri 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "164b17095b54a6018419cc502e7f0285c75c1b68081240f447bcf5b4d7b88a2a"
-"checksum amqp_worker 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "2996f45d791012b6fcbb46c7b0d668f334b943449da3774ce059786c49f16a22"
+"checksum amqp_worker 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)" = "b086fb747723c9e747b5cd36601616a90340b0d269082d0de5d889795b70fa16"
 "checksum approx 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "08abcc3b4e9339e33a3d0a5ed15d84a687350c05689d825e0f6655eef9e76a94"
 "checksum arc-swap 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "854ede29f7a0ce90519fb2439d030320c6201119b87dab0ee96044603e1130b9"
 "checksum arrayref 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "0d382e583f07208808f6b1249e60848879ba3543f57c32277bf52d69c2f0f0ee"

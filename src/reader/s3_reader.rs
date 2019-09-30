@@ -1,19 +1,23 @@
 use crate::target_configuration::TargetConfiguration;
 
+use amqp_worker::job::Job;
 use ftp::FtpError;
-
 use std::io::{BufReader, Cursor, Error, ErrorKind, Read};
 use std::thread;
 use tokio::prelude::*;
 use tokio_io::AsyncRead;
 
 pub struct S3Reader {
+  job_id: u64,
   target: TargetConfiguration,
 }
 
 impl S3Reader {
-  pub fn new(target: TargetConfiguration) -> Self {
-    S3Reader { target }
+  pub fn new(target: TargetConfiguration, job: &Job) -> Self {
+    S3Reader {
+      job_id: job.job_id,
+      target
+    }
   }
 
   pub fn process_copy<F>(&mut self, streamer: F) -> Result<(), FtpError>
@@ -22,6 +26,7 @@ impl S3Reader {
   {
     let s3_byte_stream = self.target.get_s3_download_stream()?;
     let async_read = s3_byte_stream.into_async_read();
+    let job_id = self.job_id;
 
     struct ByteStream<R>(R);
     impl<R: AsyncRead> Stream for ByteStream<R> {
@@ -55,7 +60,7 @@ impl S3Reader {
           streamer(&mut reader)
             .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))
         })
-        .map_err(|e| println!("Error reading byte: {:?}", e));
+        .map_err(move |e| error!(target: &job_id.to_string(), "Error reading byte: {:?}", e));
 
       tokio::run(process);
       Ok(())
