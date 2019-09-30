@@ -7,7 +7,7 @@ use crate::writer::*;
 
 pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
   let job = job::Job::new(message)?;
-  debug!("received message: {:?}", job);
+  debug!(target: &job.job_id.to_string(), "received message: {:?}", job);
 
   job.check_requirements()?;
   let destination_target = TargetConfiguration::new(&job, "destination")?;
@@ -52,7 +52,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         })
     }
     ConfigurationType::S3Bucket => {
-      let mut s3_reader = S3Reader::new(source_target.clone());
+      let mut s3_reader = S3Reader::new(source_target.clone(), job);
 
       s3_reader
         .process_copy(move |stream| writer.write_stream(stream))
@@ -74,7 +74,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         })
     }
     ConfigurationType::HttpResource => {
-      let mut http_reader = HttpReader::new(source_target.clone());
+      let mut http_reader = HttpReader::new(source_target.clone(), job);
 
       http_reader
         .process_copy(move |stream| writer.write_stream(stream))

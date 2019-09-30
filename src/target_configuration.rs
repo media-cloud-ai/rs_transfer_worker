@@ -737,7 +737,6 @@ pub fn get_target_from_url_test_s3_with_credentials() {
   let path = "s3://bucket/folder/file?region=eu-central-1&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY&hostname=hostname";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&job, &url);
-  println!("{:?}", result);
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(None, target.hostname);
@@ -830,7 +829,6 @@ pub fn new_target_from_non_url_test() {
   "#;
   let job = Job::new(message).unwrap();
   let result = TargetConfiguration::new(&job, "source");
-  println!("{:?}", result);
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(
