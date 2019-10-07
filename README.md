@@ -80,6 +80,12 @@ This file will instantiate te following pipeline:
                                                +-------------+
 <!-- language: markdown -->
 
+The current pipeline the following environment variable:
+
+| Variable name           | Default value              | Description                                                  |
+|-------------------------|----------------------------|--------------------------------------------------------------|
+| `RUSTTOOLS_DOCKER_IMG`  |                            | Name of RUST docker image used in Gitlab-CI pipeline and containing CLIPPY, TARPAULIN and RUSTFMT. |
+
 ### Docker
 
 The command `make docker-build` will build an image named `mediacloudai/rdf_worker`.
@@ -90,4 +96,3 @@ The command `make push-docker-registry` will logged in and push the built image 
 |-------------------------|----------------------------|--------------------------------------------------------------|
 | `DOCKER_REGISTRY_LOGIN` |                            | User name used to connect to the docker registry.            |
 | `DOCKER_REGISTRY_PWD`   |                            | Password used to connect to the docker registry.             |
-| `RUSTTOOLS_DOCKER_IMG`  |                            | Name of RUST image containing CLIPPY, TARPAULIN and RUSTFMT. |
