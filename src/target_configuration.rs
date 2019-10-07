@@ -2,8 +2,8 @@ use std::io::{Error, ErrorKind};
 use std::str::FromStr;
 
 use amqp_worker::{job::*, MessageError};
-use amqp_worker::parameter::credential::Credential;
-use crate::amqp_worker::parameter::container::ParametersContainer;
+// use amqp_worker::parameter::credential::Credential;
+// use crate::amqp_worker::parameter::container::ParametersContainer;
 
 use ftp::{
   openssl::ssl::{SslContext, SslMethod},
