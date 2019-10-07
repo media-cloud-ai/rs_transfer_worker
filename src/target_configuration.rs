@@ -2,6 +2,9 @@ use std::io::{Error, ErrorKind};
 use std::str::FromStr;
 
 use amqp_worker::{job::*, MessageError};
+use amqp_worker::parameter::credential::Credential;
+use crate::amqp_worker::parameter::container::ParametersContainer;
+
 use ftp::{
   openssl::ssl::{SslContext, SslMethod},
   types::FileType,
@@ -332,11 +335,12 @@ impl TargetConfiguration {
   }
 
   pub fn get_type(&self) -> ConfigurationType {
+    if self.hostname.is_some() && self.access_key.is_some() && self.secret_key.is_some() {
+      return ConfigurationType::S3Bucket;
+    }
+
     if self.hostname.is_some() {
       return ConfigurationType::Ftp;
-    }
-    if self.secret_key.is_some() {
-      return ConfigurationType::S3Bucket;
     }
 
     if self.path.starts_with("http://") || self.path.starts_with("https://") {
