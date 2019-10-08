@@ -85,6 +85,7 @@ impl TargetConfiguration {
       .get_credential_parameter(&format!("{}_region", target))
       .map(|key| key.request_value(job))
       .map_or(Ok(Region::default()), |r| {
+        println!("{:?}", hostname);
         if let Some(h) = &hostname {
           Ok(Region::Custom {
             name: r.unwrap(),
@@ -335,7 +336,7 @@ impl TargetConfiguration {
   }
 
   pub fn get_type(&self) -> ConfigurationType {
-    if self.hostname.is_some() && self.access_key.is_some() && self.secret_key.is_some() {
+    if self.access_key.is_some() && self.secret_key.is_some() {
       return ConfigurationType::S3Bucket;
     }
 
@@ -793,7 +794,6 @@ pub fn new_target_from_url_test() {
 #[test]
 pub fn new_target_from_non_url_test() {
   use mockito::mock;
-  use rusoto_core::Region::UsEast1;
 
   std::env::set_var("BACKEND_HOSTNAME", mockito::server_url());
 
@@ -802,13 +802,25 @@ pub fn new_target_from_non_url_test() {
     .with_body(r#"{"access_token": "fake_access_token"}"#)
     .create();
 
-  let _m = mock("GET", "/credentials/SOME_HOST_CREDENTIAL")
+  let _m = mock("GET", "/credentials/SOME_HOSTNAME_CREDENTIAL")
     .with_header("content-type", "application/json")
     .with_body(
       r#"{"data": {
       "id": 666,
-      "key": "SOME_HOST_CREDENTIAL",
-      "value": "https://s3.media-io.com",
+      "key": "SOME_HOSTNAME_CREDENTIAL",
+      "value": "https://s3.media-io.com/",
+      "inserted_at": "today"
+    }}"#,
+    )
+    .create();
+
+  let _m = mock("GET", "/credentials/SOME_REGION_CREDENTIAL")
+    .with_header("content-type", "application/json")
+    .with_body(
+      r#"{"data": {
+      "id": 666,
+      "key": "SOME_REGION_CREDENTIAL",
+      "value": "eu-east-1",
       "inserted_at": "today"
     }}"#,
     )
@@ -826,25 +838,34 @@ pub fn new_target_from_non_url_test() {
         {
           "id": "source_hostname",
           "type": "credential",
-          "value": "SOME_HOST_CREDENTIAL"
+          "value": "SOME_HOSTNAME_CREDENTIAL"
+        },
+        {
+          "id": "source_region",
+          "type": "credential",
+          "value": "SOME_REGION_CREDENTIAL"
         }
       ]
     }
   "#;
   let job = Job::new(message).unwrap();
   let result = TargetConfiguration::new(&job, "source");
+  println!("{:?}", result);
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(
     target,
     TargetConfiguration {
-      hostname: Some("https://s3.media-io.com".to_string()),
+      hostname: Some("https://s3.media-io.com/".to_string()),
       port: 21,
       username: None,
       password: None,
       access_key: None,
       secret_key: None,
-      region: UsEast1,
+      region: Region::Custom {
+        name: "eu-east-1".to_string(),
+        endpoint: "https://s3.media-io.com/".to_string()
+      },
       prefix: None,
       path: "/path/to/file".to_string(),
       ssl_enabled: false
