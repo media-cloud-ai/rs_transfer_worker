@@ -85,7 +85,6 @@ impl TargetConfiguration {
       .get_credential_parameter(&format!("{}_region", target))
       .map(|key| key.request_value(job))
       .map_or(Ok(Region::default()), |r| {
-        println!("{:?}", hostname);
         if let Some(h) = &hostname {
           Ok(Region::Custom {
             name: r.unwrap(),
