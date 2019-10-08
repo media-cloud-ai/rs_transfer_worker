@@ -11,6 +11,7 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
 
   job.check_requirements()?;
   let destination_target = TargetConfiguration::new(&job, "destination")?;
+  info!("Destination: {:?}", destination_target.get_type());
 
   match destination_target.get_type() {
     ConfigurationType::Ftp => {
@@ -26,6 +27,10 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
       })?;
       do_transfer(&job, writer)?;
     }
+    ConfigurationType::S3Bucket => {
+      let writer = S3StreamWriter::new(destination_target);
+      do_transfer(&job, writer)?;
+    }
     _ => {
       let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
         .with_message("Unsupported Writer configuration".to_string());
@@ -38,6 +43,7 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
 
 fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<(), MessageError> {
   let source_target = TargetConfiguration::new(&job, "source")?;
+  info!("Source: {:?}", source_target.get_type());
 
   match source_target.get_type() {
     ConfigurationType::Ftp => {
