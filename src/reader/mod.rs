@@ -44,10 +44,10 @@ fn transfer_ftp() {
 
 #[test]
 fn transfer_s3() {
-  use amqp_worker::job::Job;
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
+  use amqp_worker::job::Job;
   use rusoto_core::region::Region;
   use std::env;
 
@@ -85,10 +85,10 @@ fn transfer_s3() {
 
 #[test]
 fn transfer_http() {
-  use amqp_worker::job::Job;
   use crate::target_configuration::TargetConfiguration;
   use crate::writer::FileStreamWriter;
   use crate::writer::StreamWriter;
+  use amqp_worker::job::Job;
 
   let job = Job {
     job_id: 666,

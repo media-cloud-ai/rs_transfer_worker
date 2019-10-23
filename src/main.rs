@@ -25,9 +25,9 @@ mod writer;
 use amqp_worker::worker::{Parameter, ParameterType};
 
 macro_rules! crate_version {
-    () => {
-        env!("CARGO_PKG_VERSION")
-    };
+  () => {
+    env!("CARGO_PKG_VERSION")
+  };
 }
 
 #[derive(Debug)]
@@ -45,7 +45,8 @@ impl MessageEvent for TransferEvent {
   fn get_description(&self) -> String {
     r#"Move any file from a location to an another one else.
 It support in input: Local, FTP, S3, HTTP.
-It support in output: Local, FTP, S3."#.to_string()
+It support in output: Local, FTP, S3."#
+      .to_string()
   }
 
   fn get_version(&self) -> Version {
@@ -177,7 +178,7 @@ It support in output: Local, FTP, S3."#.to_string()
         label: "Destination ssl".to_string(),
         kind: vec![ParameterType::Credential],
         required: true,
-      }
+      },
     ]
   }
 

@@ -1,9 +1,9 @@
 use std::io::{Error, ErrorKind};
 use std::str::FromStr;
 
-use amqp_worker::{job::*, MessageError};
 use amqp_worker::Credential;
 use amqp_worker::ParametersContainer;
+use amqp_worker::{job::*, MessageError};
 
 use ftp::{
   openssl::ssl::{SslContext, SslMethod},

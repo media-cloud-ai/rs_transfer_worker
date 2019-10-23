@@ -16,7 +16,7 @@ impl S3Reader {
   pub fn new(target: TargetConfiguration, job: &Job) -> Self {
     S3Reader {
       job_id: job.job_id,
-      target
+      target,
     }
   }
 

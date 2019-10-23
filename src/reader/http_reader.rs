@@ -16,7 +16,7 @@ impl HttpReader {
   pub fn new(target: TargetConfiguration, job: &Job) -> Self {
     HttpReader {
       job_id: job.job_id,
-      target
+      target,
     }
   }
 
