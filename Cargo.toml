@@ -1,6 +1,7 @@
 [package]
 name = "tranfer_worker"
-version = "0.1.1"
+
+version = "0.1.2"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
@@ -8,7 +9,7 @@ authors = [
 edition = "2018"
 
 [dependencies]
-amqp_worker = { version = "0.5.9" }
+amqp_worker = { version = "0.6.0" }
 bytes = "0.4.12"
 ftp = { version = "3.0.1", features = ["secure"] }
 futures = "0.1.28"
@@ -18,6 +19,7 @@ reqwest = "0.9.5"
 rusoto_core = "0.40.0"
 rusoto_credential = "0.40.0"
 rusoto_s3 = "0.40.0"
+semver = { version = "^0.9" }
 tokio = "0.1"
 tokio-io = "0.1"
 url = "2.0.0"
