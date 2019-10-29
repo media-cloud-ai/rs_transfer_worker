@@ -389,9 +389,9 @@ impl TargetConfiguration {
       .get_object(request)
       .sync()
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
-    let stream = object.body.ok_or(FtpError::InvalidResponse(
-      "No retrieved object data to access.".to_string(),
-    ))?;
+    let stream = object.body.ok_or_else(|| {
+      FtpError::InvalidResponse("No retrieved object data to access.".to_string())
+    })?;
     Ok(stream)
   }
 

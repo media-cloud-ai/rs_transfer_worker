@@ -39,7 +39,7 @@ impl StreamWriter for FileStreamWriter {
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
 
     let mut file_writer: BufWriter<File> = BufWriter::new(destination_file);
-    copy(&mut read_stream, &mut file_writer).map_err(|e| FtpError::ConnectionError(e))?;
+    copy(&mut read_stream, &mut file_writer).map_err(FtpError::ConnectionError)?;
     Ok(())
   }
 }

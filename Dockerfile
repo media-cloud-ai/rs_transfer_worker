@@ -1,6 +1,7 @@
 FROM rust:1.38-stretch as builder
 
-ADD . ./
+ADD . /src
+WORKDIR /src
 
 RUN apt-get update && \
     apt-get install -y libssl-dev && \
