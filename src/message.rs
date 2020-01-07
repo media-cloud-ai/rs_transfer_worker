@@ -22,9 +22,7 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
     ConfigurationType::LocalFile => {
       let mut writer = FileStreamWriter::new(destination_target);
       writer.open().map_err(|e| {
-        let result =
-          JobResult::new(job.job_id, JobStatus::Error)
-          .with_message(&e.to_string());
+        let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
 
         MessageError::ProcessingError(result)
       })?;
@@ -53,46 +51,42 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
 
   match source_target.get_type() {
     ConfigurationType::Ftp => {
-      let mut ftp_reader = FtpReader::new(source_target.clone());
+      let mut ftp_reader = FtpReader::new(source_target);
 
       ftp_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result =
-            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
     ConfigurationType::S3Bucket => {
-      let mut s3_reader = S3Reader::new(source_target.clone(), job);
+      let mut s3_reader = S3Reader::new(source_target, job);
 
       s3_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result =
-            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
     ConfigurationType::LocalFile => {
-      let mut file_reader = FileReader::new(source_target.clone());
+      let mut file_reader = FileReader::new(source_target);
 
       file_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result =
-            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
     ConfigurationType::HttpResource => {
-      let mut http_reader = HttpReader::new(source_target.clone(), job);
+      let mut http_reader = HttpReader::new(source_target, job);
 
       http_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result =
-            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }

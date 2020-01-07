@@ -31,7 +31,7 @@ impl StreamWriter for S3StreamWriter {
           complete_parts.push(self.target.upload_s3_part(
             &upload_identifier,
             part_number,
-            part_buffer.clone(),
+            part_buffer,
           )?);
           self
             .target

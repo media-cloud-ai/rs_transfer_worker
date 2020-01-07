@@ -328,8 +328,10 @@ impl TargetConfiguration {
         }
       })
       .unwrap_or({
-        let result = JobResult::new(job.job_id, JobStatus::Error)
-          .with_message(&format!("Cannot find {:?} into url: {}", reference_key, url));
+        let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&format!(
+          "Cannot find {:?} into url: {}",
+          reference_key, url
+        ));
         Err(MessageError::ProcessingError(result))
       })
   }
@@ -440,7 +442,7 @@ impl TargetConfiguration {
       .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
 
     Ok(CompletedPart {
-      e_tag: object.e_tag.clone(),
+      e_tag: object.e_tag,
       part_number: Some(part_number),
     })
   }
