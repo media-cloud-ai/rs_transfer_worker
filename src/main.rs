@@ -1,5 +1,4 @@
 extern crate amqp_worker;
-// extern crate built;
 extern crate ftp;
 extern crate futures;
 extern crate futures_util;
@@ -50,11 +49,6 @@ It support in output: Local, FTP, S3."#
 
   fn get_version(&self) -> Version {
     semver::Version::parse(built_info::PKG_VERSION).expect("unable to locate Package version")
-  }
-
-  fn get_git_version(&self) -> Version {
-    semver::Version::parse(built_info::GIT_VERSION.unwrap_or_else(|| built_info::PKG_VERSION))
-      .expect("unable to locate Package version")
   }
 
   fn get_parameters(&self) -> Vec<Parameter> {

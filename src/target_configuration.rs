@@ -45,7 +45,7 @@ impl TargetConfiguration {
     let path_parameter = format!("{}_path", target);
 
     let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
-      let result = JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(format!(
+      let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&format!(
         "missing {} parameter",
         path_parameter.replace("_", " ")
       ));
@@ -92,8 +92,8 @@ impl TargetConfiguration {
           })
         } else {
           Region::from_str(&r.unwrap()).map_err(|e| {
-            let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-              .with_message(format!("unable to match AWS region: {}", e));
+            let result = JobResult::new(job.job_id, JobStatus::Error)
+              .with_message(&format!("unable to match AWS region: {}", e));
             MessageError::ProcessingError(result)
           })
         }
@@ -110,8 +110,8 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .map(|value| {
         value.parse::<u16>().map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-            .with_message(format!("unable to parse port value: {}", e));
+          let result = JobResult::new(job.job_id, JobStatus::Error)
+            .with_message(&format!("unable to parse port value: {}", e));
           MessageError::ProcessingError(result)
         })
       })
@@ -124,8 +124,8 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .map(|value| {
         FromStr::from_str(&value).map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-            .with_message(format!("unable to parse ssl enabling: {}", e));
+          let result = JobResult::new(job.job_id, JobStatus::Error)
+            .with_message(&format!("unable to parse ssl enabling: {}", e));
           MessageError::ProcessingError(result)
         })
       })
@@ -242,8 +242,8 @@ impl TargetConfiguration {
             url.path(),
           ))
         } else {
-          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-            .with_message(format!("Invalid FTP URL: {}", url));
+          let result = JobResult::new(job.job_id, JobStatus::Error)
+            .with_message(&format!("Invalid FTP URL: {}", url));
           Err(MessageError::ProcessingError(result))
         }
       }
@@ -258,8 +258,8 @@ impl TargetConfiguration {
             true,
           ))
         } else {
-          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-            .with_message(format!("Invalid SFTP URL: {}", url));
+          let result = JobResult::new(job.job_id, JobStatus::Error)
+            .with_message(&format!("Invalid SFTP URL: {}", url));
           Err(MessageError::ProcessingError(result))
         }
       }
@@ -276,7 +276,7 @@ impl TargetConfiguration {
         } else {
           Region::from_str(region_str.as_str()).map_err(|error| {
             let result =
-              JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(error.to_string());
+              JobResult::new(job.job_id, JobStatus::Error).with_message(&error.to_string());
             MessageError::ProcessingError(result)
           })?
         };
@@ -295,14 +295,14 @@ impl TargetConfiguration {
             url.path(),
           ))
         } else {
-          let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-            .with_message(format!("Invalid S3 URL: {}", url));
+          let result = JobResult::new(job.job_id, JobStatus::Error)
+            .with_message(&format!("Invalid S3 URL: {}", url));
           Err(MessageError::ProcessingError(result))
         }
       }
       _ => {
-        let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-          .with_message(format!("Unsupported URL: {}", url));
+        let result = JobResult::new(job.job_id, JobStatus::Error)
+          .with_message(&format!("Unsupported URL: {}", url));
         Err(MessageError::ProcessingError(result))
       }
     }
@@ -328,8 +328,8 @@ impl TargetConfiguration {
         }
       })
       .unwrap_or({
-        let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-          .with_message(format!("Cannot find {:?} into url: {}", reference_key, url));
+        let result = JobResult::new(job.job_id, JobStatus::Error)
+          .with_message(&format!("Cannot find {:?} into url: {}", reference_key, url));
         Err(MessageError::ProcessingError(result))
       })
   }

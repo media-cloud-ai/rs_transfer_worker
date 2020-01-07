@@ -16,29 +16,35 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
   match destination_target.get_type() {
     ConfigurationType::Ftp => {
       let writer = FtpStreamWriter::new(destination_target);
+
       do_transfer(&job, writer)?;
     }
     ConfigurationType::LocalFile => {
       let mut writer = FileStreamWriter::new(destination_target);
       writer.open().map_err(|e| {
         let result =
-          JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+          JobResult::new(job.job_id, JobStatus::Error)
+          .with_message(&e.to_string());
+
         MessageError::ProcessingError(result)
       })?;
+
       do_transfer(&job, writer)?;
     }
     ConfigurationType::S3Bucket => {
       let writer = S3StreamWriter::new(destination_target);
+
       do_transfer(&job, writer)?;
     }
     _ => {
-      let result = JobResult::new(job.job_id, JobStatus::Error, vec![])
-        .with_message("Unsupported Writer configuration".to_string());
+      let result = JobResult::new(job.job_id, JobStatus::Error)
+        .with_message("Unsupported Writer configuration");
+
       return Err(MessageError::ProcessingError(result));
     }
   }
 
-  Ok(JobResult::new(job.job_id, JobStatus::Completed, vec![]))
+  Ok(JobResult::new(job.job_id, JobStatus::Completed))
 }
 
 fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<(), MessageError> {
@@ -53,7 +59,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
           let result =
-            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
@@ -64,7 +70,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
           let result =
-            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
@@ -75,7 +81,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
           let result =
-            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
@@ -86,7 +92,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
           let result =
-            JobResult::new(job.job_id, JobStatus::Error, vec![]).with_message(e.to_string());
+            JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
