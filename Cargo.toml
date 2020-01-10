@@ -15,7 +15,7 @@ ftp = { version = "3.0.1", features = ["secure"] }
 futures = "0.1.28"
 futures-util = "0.2"
 log = "0.4.8"
-reqwest = "0.9.24"
+reqwest = "0.10.1"
 rusoto_core = "0.42.0"
 rusoto_credential = "0.42.0"
 rusoto_s3 = "0.42.0"
