@@ -1332,6 +1332,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "pin-project-lite"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "pkg-config"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2008,6 +2013,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bytes 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pin-project-lite 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "tokio-buf"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2222,7 +2236,7 @@ dependencies = [
  "rusoto_credential 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_s3 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2570,6 +2584,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum pest_derive 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "833d1ae558dc601e9a60366421196a8d94bc0ac980476d0b67e1d0988d72b2d0"
 "checksum pest_generator 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7b9fcf299b5712d06ee128a556c94709aaa04512c4dffb8ead07c5c998447fc0"
 "checksum pest_meta 2.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "df43fd99896fd72c485fe47542c7b500e4ac1e8700bf995544d1317a60ded547"
+"checksum pin-project-lite 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "237844750cfbb86f67afe27eee600dfbbcb6188d734139b534cbfbf4f96792ae"
 "checksum pkg-config 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)" = "05da548ad6865900e60eaba7f589cc0783590a92e940c26953ff81ddbab2d677"
 "checksum ppv-lite86 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "74490b50b9fbe561ac330df47c08f3f33073d2d00c150f719147d7c54522fa1b"
 "checksum proc-macro2 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)" = "0319972dcae462681daf4da1adeeaa066e3ebd29c69be96c6abb1259d2ee2bcc"
@@ -2640,6 +2655,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum thread_local 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
 "checksum time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)" = "db8dcfca086c1143c9270ac42a2bbd8a7ee477b78ac8e45b19abfb0cbede4b6f"
 "checksum tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)" = "5a09c0b5bb588872ab2f09afa13ee6e9dac11e10a0ec9e8e3ba39a5a5d530af6"
+"checksum tokio 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)" = "c1fc73332507b971a5010664991a441b5ee0de92017f5a0e8b00fd684573045b"
 "checksum tokio-buf 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8fb220f46c53859a4b7ec083e41dec9778ff0b1851c0942b211edb89e0ccdc46"
 "checksum tokio-codec 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5c501eceaf96f0e1793cf26beb63da3d11c738c4a943fdf3746d81d64684c39f"
 "checksum tokio-current-thread 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "d16217cad7f1b840c5a97dfb3c43b0c871fef423a6e8d2118c604e843662a443"
