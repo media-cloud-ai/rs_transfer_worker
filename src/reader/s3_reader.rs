@@ -33,7 +33,7 @@ impl S3Reader {
       type Item = Vec<u8>;
       type Error = FtpError;
       fn poll(&mut self) -> Result<Async<Option<Vec<u8>>>, FtpError> {
-        let mut buf = [0; 4096];
+        let mut buf = [0; 1024 * 1024];
         match self.0.poll_read(&mut buf) {
           Ok(Async::Ready(n)) => {
             if n == 0 {
