@@ -1,11 +1,22 @@
 use crate::target_configuration::TargetConfiguration;
+use std::env;
 
 use amqp_worker::job::Job;
 use ftp::FtpError;
+use std::env;
 use std::io::{BufReader, Cursor, Error, ErrorKind, Read};
 use std::thread;
 use tokio::prelude::*;
 use tokio_io::AsyncRead;
+
+macro_rules! get_env_value {
+  ($key:expr, $default:expr) => {
+    match env::var($key) {
+      Ok(value) => value,
+      _ => $default.to_string(),
+    }
+  };
+}
 
 pub struct S3Reader {
   job_id: u64,
@@ -17,6 +28,14 @@ impl S3Reader {
     S3Reader {
       job_id: job.job_id,
       target,
+    }
+  }
+
+  fn get_s3_chunk_size(size: u16) -> u16 {
+    let value = get_env_value!("S3_CHUNK_SIZE", i.to_string());
+    match value.parse::<u16>() {
+      Ok(value) => value,
+      _ => 1,
     }
   }
 
@@ -33,7 +52,9 @@ impl S3Reader {
       type Item = Vec<u8>;
       type Error = FtpError;
       fn poll(&mut self) -> Result<Async<Option<Vec<u8>>>, FtpError> {
-        let mut buf = [0; 1024 * 1024];
+        let chunk_size = get_s3_chunk_size(1);
+        info!("S3_CHUNK_SIZE: {}", chunk_size);
+        let mut buf = [0; 1024 * 1024 * chunk_size];
         match self.0.poll_read(&mut buf) {
           Ok(Async::Ready(n)) => {
             if n == 0 {
