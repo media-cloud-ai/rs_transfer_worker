@@ -28,6 +28,23 @@ The following tool must be installed on your computer:
 * libc6-dev (apt-get install libc6-dev)
 * libssl-dev (apt-get install -y libssl-dev)
 
+To build the worker locally, you may need to install the openssl library:
+
+```bash
+wget https://github.com/openssl/openssl/archive/OpenSSL_1_0_2t.tar.gz
+tar -xvzf OpenSSL_1_0_2t.tar.gz
+cd openssl-OpenSSL_1_0_2t
+./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
+make
+make test
+sudo make install
+/usr/local/openssl/bin/openssl version
+export OPENSSL_INCLUDE_DIR=/usr/local/openssl/include/
+export OPENSSL_ROOT_DIR=/usr/local/openssl/
+export OPENSSL_SSL_LIBRARIES=/usr/local/openssl/lib/
+export OPENSSL_LIB_DIR=/usr/local/openssl/lib/
+```
+
 ## Launch worker locally
 
 Before to launch the worker you need to set some environment variables. These variables are describe [here](https://github.com/media-cloud-ai/rs_amqp_worker).
