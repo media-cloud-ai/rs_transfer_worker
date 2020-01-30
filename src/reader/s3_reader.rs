@@ -1,5 +1,4 @@
 use crate::target_configuration::TargetConfiguration;
-use std::env;
 
 use amqp_worker::job::Job;
 use ftp::FtpError;
@@ -31,14 +30,6 @@ impl S3Reader {
     }
   }
 
-  fn get_s3_chunk_size(size: u16) -> u16 {
-    let value = get_env_value!("S3_CHUNK_SIZE", i.to_string());
-    match value.parse::<u16>() {
-      Ok(value) => value,
-      _ => 1,
-    }
-  }
-
   pub fn process_copy<F>(&mut self, streamer: F) -> Result<(), FtpError>
   where
     F: (Fn(&mut dyn Read) -> Result<(), FtpError>) + Send + Sync + 'static,
@@ -52,9 +43,14 @@ impl S3Reader {
       type Item = Vec<u8>;
       type Error = FtpError;
       fn poll(&mut self) -> Result<Async<Option<Vec<u8>>>, FtpError> {
-        let chunk_size = get_s3_chunk_size(1);
+        let chunk_size_env = get_env_value!("S3_CHUNK_SIZE", "1");
+        let chunk_size = match chunk_size_env.parse::<usize>() {
+          Ok(chunk_size_env) => chunk_size_env,
+          _ => 1,
+        };
         info!("S3_CHUNK_SIZE: {}", chunk_size);
-        let mut buf = [0; 1024 * 1024 * chunk_size];
+        //let mut buf = [0; 1024 * 1024 * chunk_size];
+        let mut buf = Vec::with_capacity(1024 * 1024 * chunk_size);
         match self.0.poll_read(&mut buf) {
           Ok(Async::Ready(n)) => {
             if n == 0 {
