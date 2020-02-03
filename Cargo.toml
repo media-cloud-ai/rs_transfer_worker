@@ -28,4 +28,4 @@ url = "2.0.0"
 mockito = "0.22"
 
 [build-dependencies]
-built = "0.3"
+built = "0.4"
