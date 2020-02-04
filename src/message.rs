@@ -1,17 +1,14 @@
 use amqp_worker::job::*;
 use amqp_worker::*;
-
 use crate::reader::*;
 use crate::target_configuration::*;
 use crate::writer::*;
+use lapin_futures::Channel;
 
-pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
-  let job = job::Job::new(message)?;
-  debug!(target: &job.job_id.to_string(), "received message: {:?}", job);
+pub fn process(_channel: Option<&Channel>, job: &Job, job_result: JobResult) -> Result<job::JobResult, MessageError> {
 
-  job.check_requirements()?;
   let destination_target = TargetConfiguration::new(&job, "destination")?;
-  info!("Destination: {:?}", destination_target.get_type());
+  info!(target: &job.job_id.to_string(), "Destination: {:?}", destination_target.get_type());
 
   match destination_target.get_type() {
     ConfigurationType::Ftp => {
@@ -22,7 +19,7 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
     ConfigurationType::LocalFile => {
       let mut writer = FileStreamWriter::new(destination_target);
       writer.open().map_err(|e| {
-        let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+        let result = JobResult::new(job.job_id).with_status(JobStatus::Error).with_message(&e.to_string());
 
         MessageError::ProcessingError(result)
       })?;
@@ -35,19 +32,19 @@ pub fn process(message: &str) -> Result<job::JobResult, MessageError> {
       do_transfer(&job, writer)?;
     }
     _ => {
-      let result = JobResult::new(job.job_id, JobStatus::Error)
+      let result = JobResult::new(job.job_id).with_status(JobStatus::Error)
         .with_message("Unsupported Writer configuration");
 
       return Err(MessageError::ProcessingError(result));
     }
   }
 
-  Ok(JobResult::new(job.job_id, JobStatus::Completed))
+  Ok(job_result.with_status(JobStatus::Completed))
 }
 
 fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<(), MessageError> {
   let source_target = TargetConfiguration::new(&job, "source")?;
-  info!("Source: {:?}", source_target.get_type());
+  info!(target: &job.job_id.to_string(), "Source: {:?}", source_target.get_type());
 
   match source_target.get_type() {
     ConfigurationType::Ftp => {
@@ -56,7 +53,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
       ftp_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id).with_status(JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
@@ -66,7 +63,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
       s3_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id).with_status(JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
@@ -76,7 +73,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
       file_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id).with_status(JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
@@ -86,7 +83,7 @@ fn do_transfer(job: &job::Job, writer: impl StreamWriter + 'static) -> Result<()
       http_reader
         .process_copy(move |stream| writer.write_stream(stream))
         .map_err(|e| {
-          let result = JobResult::new(job.job_id, JobStatus::Error).with_message(&e.to_string());
+          let result = JobResult::new(job.job_id).with_status(JobStatus::Error).with_message(&e.to_string());
           MessageError::ProcessingError(result)
         })
     }
