@@ -6,9 +6,9 @@ ifeq ($(shell test -e $(ENVFILE) && echo -n yes),yes)
 	export
 endif
 
-DOCKER_REGISTRY?=
+CI_REGISTRY?=
 DOCKER_IMG_NAME?=mediacloudai/transfer_worker
-ifneq ($(DOCKER_REGISTRY), ) 
+ifneq ($(CI_REGISTRY), ) 
 	DOCKER_IMG_NAME := /${DOCKER_IMG_NAME}
 endif
 VERSION=$(shell cargo metadata --no-deps --format-version 1 | jq '.packages[0].version' )
@@ -29,19 +29,19 @@ ci-tests:
 	@cargo test
 
 docker-build:
-	@docker build -t ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${VERSION} .
-	@docker tag ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${VERSION} ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${CI_COMMIT_SHORT_SHA}
+	@docker build -t ${CI_REGISTRY}${DOCKER_IMG_NAME}:${VERSION} .
+	@docker tag ${CI_REGISTRY}${DOCKER_IMG_NAME}:${VERSION} ${CI_REGISTRY}${DOCKER_IMG_NAME}:${CI_COMMIT_SHORT_SHA}
 
 docker-clean:
-	@docker rmi ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${VERSION}
-	@docker rmi ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${CI_COMMIT_SHORT_SHA}
+	@docker rmi ${CI_REGISTRY}${DOCKER_IMG_NAME}:${VERSION}
+	@docker rmi ${CI_REGISTRY}${DOCKER_IMG_NAME}:${CI_COMMIT_SHORT_SHA}
 
 docker-registry-login:
-	@docker login --username "${DOCKER_REGISTRY_LOGIN}" -p"${DOCKER_REGISTRY_PWD}" ${DOCKER_REGISTRY}
+	@docker login --username "${CI_REGISTRY_USER}" -p"${CI_REGISTRY_PASSWORD}" ${CI_REGISTRY}
 	
 docker-push-registry:
-	@docker push ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${VERSION}
-	@docker push ${DOCKER_REGISTRY}${DOCKER_IMG_NAME}:${CI_COMMIT_SHORT_SHA}
+	@docker push ${CI_REGISTRY}${DOCKER_IMG_NAME}:${VERSION}
+	@docker push ${CI_REGISTRY}${DOCKER_IMG_NAME}:${CI_COMMIT_SHORT_SHA}
 
 run:
 	@cargo run rs_transfer_worker
