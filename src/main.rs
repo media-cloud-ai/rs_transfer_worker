@@ -1,20 +1,8 @@
-extern crate amqp_worker;
-extern crate ftp;
-extern crate futures;
-extern crate futures_util;
-
 #[macro_use]
 extern crate log;
-extern crate reqwest;
-extern crate rusoto_core;
-extern crate rusoto_credential;
-extern crate rusoto_s3;
-extern crate semver;
-extern crate tokio;
-extern crate tokio_io;
-extern crate url;
 
 use amqp_worker::*;
+use lapin_futures::Channel;
 use semver::Version;
 
 mod message;
@@ -176,8 +164,8 @@ It support in output: Local, FTP, S3."#
     ]
   }
 
-  fn process(&self, msg: &str) -> Result<job::JobResult, MessageError> {
-    message::process(msg)
+  fn process(&self, channel: Option<&Channel>, job: &job::Job, job_result: job::JobResult) -> Result<job::JobResult, MessageError> {
+    message::process(channel, job, job_result)
   }
 }
 

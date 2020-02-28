@@ -33,7 +33,18 @@ impl S3Reader {
       type Item = Vec<u8>;
       type Error = FtpError;
       fn poll(&mut self) -> Result<Async<Option<Vec<u8>>>, FtpError> {
-        let mut buf = [0; 1024 * 1024];
+
+        let buffer_size =
+          if let Ok(buffer_size) = std::env::var("S3_READER_BUFFER_SIZE") {
+            buffer_size.parse::<u32>().map_err(|_| FtpError::ConnectionError(Error::new(
+              ErrorKind::Other,
+              "Unable to parse S3_READER_BUFFER_SIZE variable",
+            )))? as usize
+          } else {
+            1024 * 1024
+          };
+
+        let mut buf = vec![0; buffer_size];
         match self.0.poll_read(&mut buf) {
           Ok(Async::Ready(n)) => {
             if n == 0 {
