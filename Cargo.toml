@@ -14,7 +14,7 @@ bytes = "0.5.4"
 ftp = { version = "3.0.1", features = ["secure"] }
 futures = "0.1.28"
 futures-util = "0.2"
-lapin-futures = "^0.28"
+lapin-futures = "^0.32"
 log = "0.4.8"
 reqwest = "0.9.24"
 rusoto_core = "0.42.0"
