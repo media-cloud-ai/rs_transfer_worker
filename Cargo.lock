@@ -1156,8 +1156,9 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
 name = "mcai_worker_sdk"
-version = "0.10.2"
-source = "git+https://github.com/media-cloud-ai/mcai_worker_sdk?branch=improve_logs#ec08a8552f61362f2224c576fe31d3e594b986cd"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba5b8fbacbf13515b66285fee8dfaa8c89e8bc0bee491ff770e602352ff5a376"
 dependencies = [
  "amq-protocol",
  "amq-protocol-types",
