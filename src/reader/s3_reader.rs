@@ -1,84 +1,84 @@
-use crate::target_configuration::TargetConfiguration;
+use crate::{message::StreamData, reader::StreamReader, target_configuration::TargetConfiguration};
+use async_std::sync::Sender;
+use async_trait::async_trait;
+use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3};
+use std::io::{Error, ErrorKind, Read};
 
-use amqp_worker::job::Job;
-use ftp::FtpError;
-use std::io::{BufReader, Cursor, Error, ErrorKind, Read};
-use std::thread;
-use tokio::prelude::*;
-use tokio_io::AsyncRead;
-
-pub struct S3Reader {
-  job_id: u64,
-  target: TargetConfiguration,
-}
+pub struct S3Reader {}
 
 impl S3Reader {
-  pub fn new(target: TargetConfiguration, job: &Job) -> Self {
-    S3Reader {
-      job_id: job.job_id,
-      target,
+  async fn read_file(target: TargetConfiguration, sender: Sender<StreamData>) -> Result<(), Error> {
+    let head_request = HeadObjectRequest {
+      bucket: target.get_s3_bucket()?,
+      key: target.path.clone(),
+      ..Default::default()
+    };
+
+    let request = GetObjectRequest {
+      bucket: target.get_s3_bucket()?,
+      key: target.path.clone(),
+      ..Default::default()
+    };
+
+    let client = target
+      .get_s3_client()
+      .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
+
+    let head = client
+      .head_object(head_request)
+      .sync()
+      .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
+
+    if let Some(file_size) = head.content_length {
+      sender.send(StreamData::Size(file_size as u64)).await;
     }
-  }
+    let object = client.get_object(request).sync();
 
-  pub fn process_copy<F>(&mut self, streamer: F) -> Result<(), FtpError>
-  where
-    F: (Fn(&mut dyn Read) -> Result<(), FtpError>) + Send + Sync + 'static,
-  {
-    let s3_byte_stream = self.target.get_s3_download_stream()?;
-    let async_read = s3_byte_stream.into_async_read();
-    let job_id = self.job_id;
+    let object = object.map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
 
-    struct ByteStream<R>(R);
-    impl<R: AsyncRead> Stream for ByteStream<R> {
-      type Item = Vec<u8>;
-      type Error = FtpError;
-      fn poll(&mut self) -> Result<Async<Option<Vec<u8>>>, FtpError> {
+    let s3_byte_stream = object
+      .body
+      .ok_or_else(|| Error::new(ErrorKind::Other, "No retrieved object data to access."))?;
+    let mut reader = s3_byte_stream.into_blocking_read();
 
-        let buffer_size =
-          if let Ok(buffer_size) = std::env::var("S3_READER_BUFFER_SIZE") {
-            buffer_size.parse::<u32>().map_err(|_| FtpError::ConnectionError(Error::new(
-              ErrorKind::Other,
-              "Unable to parse S3_READER_BUFFER_SIZE variable",
-            )))? as usize
-          } else {
-            1024 * 1024
-          };
+    let buffer_size = if let Ok(buffer_size) = std::env::var("S3_READER_BUFFER_SIZE") {
+      buffer_size.parse::<u32>().map_err(|_| {
+        Error::new(
+          ErrorKind::Other,
+          "Unable to parse S3_READER_BUFFER_SIZE variable",
+        )
+      })? as usize
+    } else {
+      1024 * 1024
+    };
 
-        let mut buf = vec![0; buffer_size];
-        match self.0.poll_read(&mut buf) {
-          Ok(Async::Ready(n)) => {
-            if n == 0 {
-              Ok(Async::Ready(None))
-            } else {
-              Ok(Async::Ready(Some(buf[0..n].to_vec())))
-            }
-          }
-          Ok(Async::NotReady) => Ok(Async::NotReady),
-          Err(e) => Err(FtpError::ConnectionError(Error::new(
-            ErrorKind::Other,
-            e.to_string(),
-          ))),
-        }
+    loop {
+      let mut buffer: Vec<u8> = vec![0; buffer_size];
+      let size = reader.read(&mut buffer)?;
+      if size == 0 {
+        break;
       }
+
+      sender
+        .send(StreamData::Data(buffer[0..size].to_vec()))
+        .await;
     }
+    sender.send(StreamData::Eof).await;
+    Ok(())
+  }
+}
 
-    let transfer_thread = thread::spawn(move || {
-      let byte_stream = ByteStream(async_read);
-      let process = byte_stream
-        .for_each(move |stream| {
-          let cursor = Cursor::new(stream);
-          let mut reader = BufReader::new(cursor);
-          streamer(&mut reader)
-            .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))
-        })
-        .map_err(move |e| error!(target: &job_id.to_string(), "Error reading byte: {:?}", e));
+#[async_trait]
+impl StreamReader for S3Reader {
+  async fn read_stream(
+    &self,
+    target: TargetConfiguration,
+    sender: Sender<StreamData>,
+  ) -> Result<(), Error> {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
 
-      tokio::run(process);
-      Ok(())
-    });
+    let ret = runtime.spawn(async move { S3Reader::read_file(target, sender).await });
 
-    transfer_thread
-      .join()
-      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, format!("{:?}", e))))?
+    ret.await.map_err(|e| Error::new(ErrorKind::Other, e))?
   }
 }

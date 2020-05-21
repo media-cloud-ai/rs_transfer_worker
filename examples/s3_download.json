@@ -1,0 +1,35 @@
+{
+	"job_id": 1234,
+	"parameters": [
+		{
+			"id": "source_path",
+			"type" : "string",
+			"value" : "file.ext"
+		},
+		{
+			"id": "source_prefix",
+			"type" : "credential",
+			"value" : "S3_BUCKET"
+		},
+		{
+			"id": "source_access_key",
+			"type" : "credential",
+			"value" : "S3_ACCESS_KEY"
+		},
+		{
+			"id": "source_secret_key",
+			"type" : "credential",
+			"value" : "S3_SECRET_KEY"
+		},
+		{
+			"id": "source_region",
+			"type" : "credential",
+			"value" : "S3_REGION"
+		},
+		{
+			"id": "destination_path",
+			"type" : "string",
+			"value" : "file.ext"
+		}
+	]
+}

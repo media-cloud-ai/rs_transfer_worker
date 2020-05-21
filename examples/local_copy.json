@@ -1,0 +1,15 @@
+{
+	"job_id": 1234,
+	"parameters": [
+		{
+			"id": "source_path",
+			"type" : "string",
+			"value" : "Cargo.toml"
+		},
+		{
+			"id": "destination_path",
+			"type" : "string",
+			"value" : "/tmp/Cargo.toml"
+		}
+	]
+}

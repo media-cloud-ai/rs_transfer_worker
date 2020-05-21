@@ -1,0 +1,15 @@
+{
+	"job_id": 1234,
+	"parameters": [
+		{
+			"id": "source_path",
+			"type" : "string",
+			"value" : "https://media-io.com"
+		},
+		{
+			"id": "destination_path",
+			"type" : "string",
+			"value" : "index.html"
+		}
+	]
+}

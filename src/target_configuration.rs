@@ -1,21 +1,20 @@
-use std::io::{Error, ErrorKind};
-use std::str::FromStr;
-
-use amqp_worker::Credential;
-use amqp_worker::ParametersContainer;
-use amqp_worker::{job::*, MessageError};
-
 use ftp::{
   openssl::ssl::{SslContext, SslMethod},
   types::FileType,
   FtpError, FtpStream,
 };
+use mcai_worker_sdk::{
+  job::{Job, JobResult, JobStatus},
+  Credential, MessageError, ParametersContainer,
+};
 use rusoto_core::{region::Region, request::HttpClient};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::{
   CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
-  CreateMultipartUploadRequest, GetObjectRequest, S3Client, UploadPartRequest, S3,
+  CreateMultipartUploadRequest, S3Client, UploadPartRequest, S3,
 };
+use std::io::{Error, ErrorKind};
+use std::str::FromStr;
 use url::Url;
 
 #[derive(Debug, PartialEq)]
@@ -41,6 +40,28 @@ pub struct TargetConfiguration {
 }
 
 impl TargetConfiguration {
+  fn get_parameters_value(
+    job: &Job,
+    target: &str,
+    suffix: &str,
+  ) -> Result<Option<String>, MessageError> {
+    let parameter_key = format!("{}_{}", target, suffix);
+    job
+      .get_credential_parameter(&parameter_key)
+      .map(|key| key.request_value(job))
+      .map_or_else(
+        || {
+          Ok(
+            job
+              .get_string_parameter(&parameter_key)
+              .map(Some)
+              .unwrap_or(None),
+          )
+        },
+        |r| r.map(Some),
+      )
+  }
+
   pub fn new(job: &Job, target: &str) -> Result<Self, MessageError> {
     let path_parameter = format!("{}_path", target);
 
@@ -58,59 +79,33 @@ impl TargetConfiguration {
       return TargetConfiguration::get_target_from_url(job, &url);
     }
 
-    let hostname = job
-      .get_credential_parameter(&format!("{}_hostname", target))
-      .map(|key| key.request_value(job))
-      .map_or(Ok(None), |r| r.map(Some))?;
+    let hostname = TargetConfiguration::get_parameters_value(job, target, "hostname")?;
+    let password = TargetConfiguration::get_parameters_value(job, target, "password")?;
+    let username = TargetConfiguration::get_parameters_value(job, target, "username")?;
+    let access_key = TargetConfiguration::get_parameters_value(job, target, "access_key")?;
+    let secret_key = TargetConfiguration::get_parameters_value(job, target, "secret_key")?;
+    let prefix = TargetConfiguration::get_parameters_value(job, target, "prefix")?;
 
-    let password = job
-      .get_credential_parameter(&format!("{}_password", target))
-      .map(|key| key.request_value(job))
-      .map_or(Ok(None), |r| r.map(Some))?;
-
-    let username = job
-      .get_credential_parameter(&format!("{}_username", target))
-      .map(|key| key.request_value(job))
-      .map_or(Ok(None), |r| r.map(Some))?;
-
-    let access_key = job
-      .get_credential_parameter(&format!("{}_access_key", target))
-      .map(|key| key.request_value(job))
-      .map_or(Ok(None), |r| r.map(Some))?;
-
-    let secret_key = job
-      .get_credential_parameter(&format!("{}_secret_key", target))
-      .map(|key| key.request_value(job))
-      .map_or(Ok(None), |r| r.map(Some))?;
-
-    let region = job
-      .get_credential_parameter(&format!("{}_region", target))
-      .map(|key| key.request_value(job))
-      .map_or(Ok(Region::default()), |r| {
-        if let Some(h) = &hostname {
+    let region = TargetConfiguration::get_parameters_value(job, target, "region")?
+      .map(|region| {
+        if let Some(hostname) = &hostname {
           Ok(Region::Custom {
-            name: r.unwrap(),
-            endpoint: h.clone(),
+            name: region,
+            endpoint: hostname.clone(),
           })
         } else {
-          Region::from_str(&r.unwrap()).map_err(|e| {
-            let result = JobResult::new(job.job_id)
-              .with_status(JobStatus::Error)
-              .with_message(&format!("unable to match AWS region: {}", e));
-            MessageError::ProcessingError(result)
-          })
+          Region::from_str(&region)
         }
+      })
+      .unwrap_or_else(|| Ok(Region::default()))
+      .map_err(|e| {
+        let result = JobResult::new(job.job_id)
+          .with_status(JobStatus::Error)
+          .with_message(&format!("unable to parse region: {}", e));
+        MessageError::ProcessingError(result)
       })?;
 
-    let prefix = job
-      .get_credential_parameter(&format!("{}_prefix", target))
-      .map(|key| key.request_value(&job))
-      .map_or(Ok(None), |r| r.map(Some))?;
-
-    let port = job
-      .get_credential_parameter(&format!("{}_port", target))
-      .map(|key| key.request_value(&job))
-      .map_or(Ok(None), |r| r.map(Some))?
+    let port = TargetConfiguration::get_parameters_value(job, target, "port")?
       .map(|value| {
         value.parse::<u16>().map_err(|e| {
           let result = JobResult::new(job.job_id)
@@ -122,10 +117,7 @@ impl TargetConfiguration {
       .map_or(Ok(None), |r| r.map(Some))?
       .unwrap_or(21);
 
-    let ssl_enabled = job
-      .get_credential_parameter(&format!("{}_ssl", target))
-      .map(|key| key.request_value(&job))
-      .map_or(Ok(None), |r| r.map(Some))?
+    let ssl_enabled = TargetConfiguration::get_parameters_value(job, target, "ssl")?
       .map(|value| {
         FromStr::from_str(&value).map_err(|e| {
           let result = JobResult::new(job.job_id)
@@ -282,10 +274,9 @@ impl TargetConfiguration {
           }
         } else {
           Region::from_str(region_str.as_str()).map_err(|error| {
-            let result =
-              JobResult::new(job.job_id)
-                .with_status(JobStatus::Error)
-                .with_message(&error.to_string());
+            let result = JobResult::new(job.job_id)
+              .with_status(JobStatus::Error)
+              .with_message(&error.to_string());
             MessageError::ProcessingError(result)
           })?
         };
@@ -392,26 +383,7 @@ impl TargetConfiguration {
     Ok(ftp_stream)
   }
 
-  pub fn get_s3_download_stream(&self) -> Result<rusoto_core::ByteStream, FtpError> {
-    let request = GetObjectRequest {
-      bucket: self.get_s3_bucket()?,
-      key: self.path.clone(),
-      ..Default::default()
-    };
-
-    let object = self
-      .get_s3_client()?
-      .get_object(request)
-      .sync()
-      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
-
-    let stream = object.body.ok_or_else(|| {
-      FtpError::InvalidResponse("No retrieved object data to access.".to_string())
-    })?;
-    Ok(stream)
-  }
-
-  pub fn start_multi_part_s3_upload(&self) -> Result<String, FtpError> {
+  pub async fn start_multi_part_s3_upload(&self) -> Result<String, Error> {
     let request = CreateMultipartUploadRequest {
       bucket: self.get_s3_bucket()?,
       key: self.path.clone(),
@@ -422,24 +394,19 @@ impl TargetConfiguration {
       .get_s3_client()?
       .create_multipart_upload(request)
       .sync()
-      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
 
-    if let Some(upload_id) = object.upload_id {
-      Ok(upload_id)
-    } else {
-      Err(FtpError::ConnectionError(Error::new(
-        ErrorKind::ConnectionRefused,
-        "error",
-      )))
-    }
+    object
+      .upload_id
+      .ok_or_else(|| Error::new(ErrorKind::ConnectionRefused, "error"))
   }
 
-  pub fn upload_s3_part(
+  pub async fn upload_s3_part(
     &self,
     upload_id: &str,
     part_number: i64,
     data: Vec<u8>,
-  ) -> Result<CompletedPart, FtpError> {
+  ) -> Result<CompletedPart, Error> {
     let request = UploadPartRequest {
       body: Some(rusoto_core::ByteStream::from(data)),
       bucket: self.get_s3_bucket()?,
@@ -453,7 +420,7 @@ impl TargetConfiguration {
       .get_s3_client()?
       .upload_part(request)
       .sync()
-      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
 
     Ok(CompletedPart {
       e_tag: object.e_tag,
@@ -461,15 +428,15 @@ impl TargetConfiguration {
     })
   }
 
-  pub fn complete_s3_upload(
+  pub async fn complete_s3_upload(
     &self,
-    upload_id: String,
+    upload_id: &str,
     parts: Vec<CompletedPart>,
-  ) -> Result<(), FtpError> {
+  ) -> Result<(), Error> {
     let request = CompleteMultipartUploadRequest {
       bucket: self.get_s3_bucket()?,
       key: self.path.clone(),
-      upload_id,
+      upload_id: upload_id.to_string(),
       multipart_upload: Some(CompletedMultipartUpload { parts: Some(parts) }),
       ..Default::default()
     };
@@ -478,41 +445,48 @@ impl TargetConfiguration {
       .get_s3_client()?
       .complete_multipart_upload(request)
       .sync()
-      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::ConnectionRefused, e)))?;
+      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
 
     Ok(())
   }
 
-  fn get_s3_client(&self) -> Result<S3Client, FtpError> {
+  pub fn get_s3_client(&self) -> Result<S3Client, Error> {
     let access_key = if let Some(access_key) = &self.access_key {
       access_key.to_string()
     } else {
-      return Err(FtpError::InvalidResponse(
-        "Missing access_key to access to S3 content".to_string(),
+      return Err(Error::new(
+        ErrorKind::ConnectionRefused,
+        "Missing access_key to access to S3 content",
       ));
     };
 
     let secret_key = if let Some(secret_key) = &self.secret_key {
       secret_key.to_string()
     } else {
-      return Err(FtpError::InvalidResponse(
-        "Missing secret_key to access to S3 content".to_string(),
+      return Err(Error::new(
+        ErrorKind::ConnectionRefused,
+        "Missing secret_key to access to S3 content",
       ));
     };
 
     Ok(S3Client::new_with(
-      HttpClient::new()
-        .map_err(|_| FtpError::InvalidResponse("Unable to create HTTP client".to_string()))?,
+      HttpClient::new().map_err(|_| {
+        Error::new(
+          ErrorKind::ConnectionRefused,
+          "Unable to create HTTP client".to_string(),
+        )
+      })?,
       StaticProvider::new_minimal(access_key, secret_key),
       self.region.clone(),
     ))
   }
 
-  fn get_s3_bucket(&self) -> Result<String, FtpError> {
+  pub fn get_s3_bucket(&self) -> Result<String, Error> {
     if let Some(prefix) = &self.prefix {
       Ok(prefix.to_string())
     } else {
-      Err(FtpError::InvalidResponse(
+      Err(Error::new(
+        ErrorKind::ConnectionRefused,
         "Missing prefix (used as bucket identifier) to access to S3 content".to_string(),
       ))
     }
@@ -865,7 +839,7 @@ pub fn new_target_from_non_url_test() {
   "#;
   let job = Job::new(message).unwrap();
   let result = TargetConfiguration::new(&job, "source");
-  println!("{:?}", result);
+
   assert!(result.is_ok());
   let target = result.unwrap();
   assert_eq!(
