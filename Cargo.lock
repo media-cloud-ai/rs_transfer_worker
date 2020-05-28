@@ -1928,13 +1928,14 @@ dependencies = [
 
 [[package]]
 name = "rusoto_s3"
-version = "0.42.0"
+version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fedcadf3d73c2925b05d547b66787f2219c5e727a98c893fff5cf2197dbd678"
+checksum = "2b6bc3221ae5a2c036d5757eee68a2ffb6b7f87b8a83adbf4271c8133fdee01c"
 dependencies = [
- "bytes 0.4.12",
- "futures 0.1.29",
- "rusoto_core 0.42.0",
+ "async-trait",
+ "bytes 0.5.4",
+ "futures 0.3.5",
+ "rusoto_core 0.43.0",
  "xml-rs",
 ]
 
