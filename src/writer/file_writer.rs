@@ -43,12 +43,12 @@ impl StreamWriter for FileWriter {
     loop {
       let stream_data = receiver.recv().await;
       match stream_data {
-        Some(StreamData::Size(size)) => file_size = Some(size),
-        Some(StreamData::Eof) => {
+        Ok(StreamData::Size(size)) => file_size = Some(size),
+        Ok(StreamData::Eof) => {
           info!(target: &job.job_id.to_string(), "packet size: min = {}, max= {}", min_size, max_size);
           return Ok(());
         }
-        Some(StreamData::Data(ref data)) => {
+        Ok(StreamData::Data(ref data)) => {
           min_size = std::cmp::min(data.len(), min_size);
           max_size = std::cmp::max(data.len(), max_size);
 
