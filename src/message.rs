@@ -28,7 +28,7 @@ pub fn process(
 
   let cloned_job = job.clone();
 
-  let (sender, receiver) = sync::channel(100);
+  let (sender, receiver) = sync::channel(1000);
   let reception_task = thread::spawn(move || {
     task::block_on(async {
       match destination_target.get_type() {
