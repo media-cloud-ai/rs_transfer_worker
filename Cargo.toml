@@ -1,7 +1,7 @@
 [package]
 name = "tranfer_worker"
 
-version = "0.1.4"
+version = "0.2.0"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
@@ -9,24 +9,25 @@ authors = [
 edition = "2018"
 
 [dependencies]
-amqp_worker = { version = "0.9.0" }
+async-std = { version = "1.5.0", features = ["unstable"]}
+async-trait = "0.1.31"
 bytes = "0.5.4"
-ftp = { version = "3.0.1", features = ["secure"] }
-futures = "0.1.28"
-futures-util = "0.2"
-lapin-futures = "^0.28"
-log = "0.4.8"
-reqwest = "0.9.24"
-rusoto_core = "0.42.0"
-rusoto_credential = "0.42.0"
-rusoto_s3 = "0.42.0"
-semver = "^0.9"
-tokio = "0.1"
+ftp = { version = "3.0.1", features = ["secure"], path = "rust-ftp" }
+futures = "0.3"
+futures-util = "0.3"
+mcai_worker_sdk = "0.10"
+reqwest = "0.10"
+rusoto_core = "0.42"
+rusoto_credential = "0.42"
+rusoto_s3 = "0.42"
+threadpool = "1.8"
+tokio = "0.2"
 tokio-io = "0.1"
 url = "2.1.1"
 
 [dev-dependencies]
-mockito = "0.23"
+mockito = "0.25"
+rusoto_mock = "0.43"
 
 [build-dependencies]
 built = "0.4"

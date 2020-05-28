@@ -1,16 +1,14 @@
-#[macro_use]
-extern crate log;
-
-use amqp_worker::*;
-use lapin_futures::Channel;
-use semver::Version;
-
 mod message;
 mod reader;
 mod target_configuration;
 mod writer;
 
-use amqp_worker::worker::{Parameter, ParameterType};
+use mcai_worker_sdk::{
+  job::{Job, JobResult},
+  start_worker,
+  worker::{Parameter, ParameterType},
+  McaiChannel, MessageError, MessageEvent, Version,
+};
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));
@@ -36,7 +34,7 @@ It support in output: Local, FTP, S3."#
   }
 
   fn get_version(&self) -> Version {
-    semver::Version::parse(built_info::PKG_VERSION).expect("unable to locate Package version")
+    Version::parse(built_info::PKG_VERSION).expect("unable to locate Package version")
   }
 
   fn get_parameters(&self) -> Vec<Parameter> {
@@ -164,7 +162,12 @@ It support in output: Local, FTP, S3."#
     ]
   }
 
-  fn process(&self, channel: Option<&Channel>, job: &job::Job, job_result: job::JobResult) -> Result<job::JobResult, MessageError> {
+  fn process(
+    &self,
+    channel: Option<McaiChannel>,
+    job: &Job,
+    job_result: JobResult,
+  ) -> Result<JobResult, MessageError> {
     message::process(channel, job, job_result)
   }
 }

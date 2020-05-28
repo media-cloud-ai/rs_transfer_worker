@@ -1,57 +1,40 @@
-use crate::target_configuration::TargetConfiguration;
-
-use amqp_worker::job::Job;
-use ftp::FtpError;
-use reqwest;
+use crate::{message::StreamData, reader::StreamReader, target_configuration::TargetConfiguration};
+use async_std::sync::Sender;
+use async_trait::async_trait;
 use reqwest::StatusCode;
-use std::io::{Error, ErrorKind, Read};
-use std::thread;
+use std::io::{Error, ErrorKind};
+use tokio::runtime::Runtime;
 
-pub struct HttpReader {
-  job_id: u64,
-  target: TargetConfiguration,
-}
+pub struct HttpReader {}
 
-impl HttpReader {
-  pub fn new(target: TargetConfiguration, job: &Job) -> Self {
-    HttpReader {
-      job_id: job.job_id,
-      target,
-    }
-  }
+#[async_trait]
+impl StreamReader for HttpReader {
+  async fn read_stream(
+    &self,
+    target: TargetConfiguration,
+    sender: Sender<StreamData>,
+  ) -> Result<(), Error> {
+    Runtime::new()
+      .expect("Failed to create Tokio runtime")
+      .block_on(async {
+        let client = reqwest::Client::builder().build().unwrap();
 
-  pub fn process_copy<F: 'static + Sync + Send>(&mut self, streamer: F) -> Result<(), FtpError>
-  where
-    F: Fn(&mut dyn Read) -> Result<(), FtpError>,
-  {
-    let url = self.target.path.clone();
-    let job_id = self.job_id;
+        let response = client.get(&target.path).send().await.unwrap();
 
-    let request_thread = thread::spawn(move || {
-      let client = reqwest::Client::builder()
-        .build()
-        .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
+        if response.status() != StatusCode::OK {
+          return Err(Error::new(
+            ErrorKind::Other,
+            format!("bad request response: {}", response.status()),
+          ));
+        }
 
-      let mut response = client
-        .get(url.as_str())
-        .send()
-        .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, e.to_string())))?;
+        let bytes = response.bytes();
+        sender
+          .send(StreamData::Data(bytes.await.unwrap().to_vec()))
+          .await;
 
-      let status = response.status();
-
-      if status != StatusCode::OK {
-        error!(target: &job_id.to_string(), "{:?}", response);
-        return Err(FtpError::ConnectionError(Error::new(
-          ErrorKind::Other,
-          "bad response status".to_string(),
-        )));
-      }
-
-      streamer(&mut response)
-    });
-
-    request_thread
-      .join()
-      .map_err(|e| FtpError::ConnectionError(Error::new(ErrorKind::Other, format!("{:?}", e))))?
+        sender.send(StreamData::Eof).await;
+        Ok(())
+      })
   }
 }

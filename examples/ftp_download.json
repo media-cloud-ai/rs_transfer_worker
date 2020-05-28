@@ -1,0 +1,35 @@
+{
+	"job_id": 1234,
+	"parameters": [
+		{
+			"id": "source_path",
+			"type" : "string",
+			"value" : "file.ext"
+		},
+		{
+			"id": "source_prefix",
+			"type" : "credential",
+			"value" : "FTP_PREFIX"
+		},
+		{
+			"id": "source_password",
+			"type" : "credential",
+			"value" : "FTP_PASSWORD"
+		},
+		{
+			"id": "source_username",
+			"type" : "credential",
+			"value" : "FTP_USERNAME"
+		},
+		{
+			"id": "source_hostname",
+			"type" : "credential",
+			"value" : "FTP_HOSTNAME"
+		},
+		{
+			"id": "destination_path",
+			"type" : "string",
+			"value" : "file.ext"
+		}
+	]
+}
