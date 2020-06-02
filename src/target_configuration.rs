@@ -5,7 +5,8 @@ use ftp::{
 };
 use mcai_worker_sdk::{
   job::{Job, JobResult, JobStatus},
-  Credential, MessageError, ParametersContainer,
+  parameter::credential::request_value,
+  MessageError, ParameterValue, ParametersContainer,
 };
 use rusoto_core::{region::Region, request::HttpClient};
 use rusoto_credential::StaticProvider;
@@ -46,26 +47,13 @@ impl TargetConfiguration {
     suffix: &str,
   ) -> Result<Option<String>, MessageError> {
     let parameter_key = format!("{}_{}", target, suffix);
-    job
-      .get_credential_parameter(&parameter_key)
-      .map(|key| key.request_value(job))
-      .map_or_else(
-        || {
-          Ok(
-            job
-              .get_string_parameter(&parameter_key)
-              .map(Some)
-              .unwrap_or(None),
-          )
-        },
-        |r| r.map(Some),
-      )
+    Ok(job.get_parameter::<String>(&parameter_key).ok())
   }
 
   pub fn new(job: &Job, target: &str) -> Result<Self, MessageError> {
     let path_parameter = format!("{}_path", target);
 
-    let path = job.get_string_parameter(&path_parameter).ok_or_else(|| {
+    let path: String = job.get_parameter(&path_parameter).map_err(|_e| {
       let result = JobResult::new(job.job_id)
         .with_status(JobStatus::Error)
         .with_message(&format!(
@@ -315,6 +303,13 @@ impl TargetConfiguration {
     url: &Url,
     reference_key: &str,
   ) -> Result<String, MessageError> {
+    let store = url
+      .query_pairs()
+      .into_owned()
+      .find(|(key, _value)| key.eq("store"))
+      .map(|(_k, v)| v)
+      .unwrap_or_else(|| "BACKEND".to_string());
+
     url
       .query_pairs()
       .into_owned()
@@ -323,8 +318,18 @@ impl TargetConfiguration {
       })
       .map(|(key, value)| {
         if key.starts_with("credential_") {
-          let credential = Credential { key: value };
-          credential.request_value(job)
+          let content = request_value(&value, &store).map_err(|error| {
+            let result = JobResult::new(job.job_id)
+              .with_status(JobStatus::Error)
+              .with_message(&error);
+            MessageError::ProcessingError(result)
+          })?;
+          String::from_value(content).map_err(|error| {
+            let result = JobResult::new(job.job_id)
+              .with_status(JobStatus::Error)
+              .with_message(&format!("{:?}", error.to_string()));
+            MessageError::ProcessingError(result)
+          })
         } else {
           Ok(value)
         }
@@ -728,7 +733,7 @@ pub fn get_target_from_url_test_s3_with_credentials() {
   "#;
   let job = Job::new(message).unwrap();
 
-  let path = "s3://bucket/folder/file?region=eu-central-1&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY&hostname=hostname";
+  let path = "s3://bucket/folder/file?region=eu-central-1&store=BACKEND&credential_access_key=MEDIAIO_AWS_ACCESS_KEY&credential_secret_key=MEDIAIO_AWS_SECRET_KEY&hostname=hostname";
   let url = Url::parse(path).unwrap();
   let result = TargetConfiguration::get_target_from_url(&job, &url);
   assert!(result.is_ok());
@@ -826,12 +831,14 @@ pub fn new_target_from_non_url_test() {
         },
         {
           "id": "source_hostname",
-          "type": "credential",
+          "type": "string",
+          "store": "BACKEND",
           "value": "SOME_HOSTNAME_CREDENTIAL"
         },
         {
           "id": "source_region",
-          "type": "credential",
+          "type": "string",
+          "store": "BACKEND",
           "value": "SOME_REGION_CREDENTIAL"
         }
       ]

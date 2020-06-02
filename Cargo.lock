@@ -1162,8 +1162,7 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 [[package]]
 name = "mcai_worker_sdk"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba5b8fbacbf13515b66285fee8dfaa8c89e8bc0bee491ff770e602352ff5a376"
+source = "git+https://github.com/media-cloud-ai/mcai_worker_sdk.git?branch=refactoring/customisable_parameters#dc9edb1dc4cc8db07f867962384a93e6026394a8"
 dependencies = [
  "amq-protocol",
  "amq-protocol-types",
@@ -2787,7 +2786,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e987b6bf443f4b5b3b6f38704195592cca41c5bb7aedd3c3693c7081f8289860"
 
 [[package]]
-name = "tranfer_worker"
+name = "transfer_worker"
 version = "0.2.0"
 dependencies = [
  "async-std",
