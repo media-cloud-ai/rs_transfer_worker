@@ -27,7 +27,7 @@ url = "2.1.1"
 
 [dev-dependencies]
 mockito = "0.25"
-rusoto_mock = "0.43"
+rusoto_mock = "0.44"
 
 [build-dependencies]
 built = "0.4"
