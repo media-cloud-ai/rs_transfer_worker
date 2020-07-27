@@ -1047,6 +1047,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnet"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
+
+[[package]]
 name = "itoa"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1812,9 +1818,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.10.5"
+version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4be79e8610ce0c2d646aa03bff67653f76d394c4e0a5e7bc255007008fcc6ba8"
+checksum = "12427a5577082c24419c9c417db35cfeb65962efc7675bb6b0d5f1f9d315bfe6"
 dependencies = [
  "base64 0.12.1",
  "bytes 0.5.4",
@@ -1825,6 +1831,7 @@ dependencies = [
  "http-body 0.3.1",
  "hyper 0.13.5",
  "hyper-tls 0.4.1",
+ "ipnet",
  "js-sys",
  "lazy_static",
  "log",
