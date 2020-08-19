@@ -1,8 +1,7 @@
 use crate::endpoint::ftp::FtpEndpoint;
 use crate::{message::StreamData, reader::StreamReader};
-use async_std::{sync::Sender, task};
+use async_std::sync::Sender;
 use async_trait::async_trait;
-use ftp::FtpError;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
@@ -62,20 +61,13 @@ impl StreamReader for FtpReader {
       sender.send(StreamData::Size(file_size as u64)).await;
     };
 
-    ftp_stream
-      .retr(&filename, |stream| {
-        let mut buffer = Vec::new();
-        stream
-          .read_to_end(&mut buffer)
-          .map(|_| {
-            task::block_on(async {
-              sender.send(StreamData::Data(buffer)).await;
-            })
-          })
-          .map_err(FtpError::ConnectionError)
-      })
+    let mut buffer = vec![];
+    let mut result = ftp_stream
+      .simple_retr(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
+    buffer.append(result.get_mut());
 
+    sender.send(StreamData::Data(buffer)).await;
     sender.send(StreamData::Eof).await;
     Ok(())
   }
