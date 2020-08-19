@@ -8,16 +8,12 @@ pub use ftp_reader::FtpReader;
 pub use http_reader::HttpReader;
 pub use s3_reader::S3Reader;
 
-use crate::{message::StreamData, target_configuration::TargetConfiguration};
+use crate::message::StreamData;
 use async_std::sync::Sender;
 use async_trait::async_trait;
 use std::io::Error;
 
 #[async_trait]
 pub trait StreamReader {
-  async fn read_stream(
-    &self,
-    target: TargetConfiguration,
-    sender: Sender<StreamData>,
-  ) -> Result<(), Error>;
+  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error>;
 }
