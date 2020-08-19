@@ -21,11 +21,13 @@ pub fn process(
   parameters: TransferWorkerParameters,
   job_result: JobResult,
 ) -> Result<JobResult, MessageError> {
-  let cloned_destination_secret = parameters.destination_secret.clone();
+  let cloned_destination_secret = parameters.destination_secret.unwrap_or_default();
   let cloned_destination_path = parameters.destination_path.clone();
   let cloned_job_result = job_result.clone();
 
-  info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", parameters.source_secret, cloned_destination_secret);
+  let source_secret = parameters.source_secret.unwrap_or_default();
+
+  info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
 
   let (sender, receiver) = sync::channel(1000);
   let reception_task = thread::spawn(move || {
@@ -102,7 +104,7 @@ pub fn process(
     })
   });
 
-  start_reader(&parameters.source_path, parameters.source_secret, sender).map_err(|e| {
+  start_reader(&parameters.source_path, source_secret, sender).map_err(|e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)

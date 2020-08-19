@@ -22,9 +22,9 @@ struct TransferEvent {}
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TransferWorkerParameters {
   source_path: String,
-  source_secret: Secret,
+  source_secret: Option<Secret>,
   destination_path: String,
-  destination_secret: Secret,
+  destination_secret: Option<Secret>,
 }
 
 impl MessageEvent<TransferWorkerParameters> for TransferEvent {
