@@ -1,23 +1,68 @@
+#[macro_use]
+extern crate serde_derive;
+
+mod endpoint;
 mod message;
 mod reader;
-mod target_configuration;
 mod writer;
 
 use mcai_worker_sdk::{
-  job::{Job, JobResult},
-  start_worker,
-  worker::{Parameter, ParameterType},
-  McaiChannel, MessageError, MessageEvent, Version,
+  job::JobResult, start_worker, JsonSchema, McaiChannel, MessageError, MessageEvent, Version,
 };
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct TransferEvent {}
 
-impl MessageEvent for TransferEvent {
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type")]
+enum Secret {
+  #[serde(rename = "ftp")]
+  Ftp {
+    hostname: String,
+    port: Option<u16>,
+    secure: Option<bool>,
+    username: Option<String>,
+    password: Option<String>,
+    prefix: Option<String>,
+  },
+  #[serde(rename = "http")]
+  Http {
+    endpoint: String,
+    method: String,
+    headers: String,
+    body: String,
+  },
+  #[serde(rename = "local")]
+  Local,
+  #[serde(rename = "s3")]
+  S3 {
+    hostname: Option<String>,
+    access_key_id: String,
+    secret_access_key: String,
+    region: Option<String>,
+    bucket: String,
+  },
+}
+
+impl Default for Secret {
+  fn default() -> Self {
+    Secret::Local
+  }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TransferWorkerParameters {
+  source_path: String,
+  source_secret: Secret,
+  destination_path: String,
+  destination_secret: Secret,
+}
+
+impl MessageEvent<TransferWorkerParameters> for TransferEvent {
   fn get_name(&self) -> String {
     "Transfer".to_string()
   }
@@ -37,143 +82,17 @@ It support in output: Local, FTP, S3."#
     Version::parse(built_info::PKG_VERSION).expect("unable to locate Package version")
   }
 
-  fn get_parameters(&self) -> Vec<Parameter> {
-    vec![
-      Parameter {
-        identifier: "source_path".to_string(),
-        label: "Source path".to_string(),
-        kind: vec![ParameterType::String],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_hostname".to_string(),
-        label: "Source hostname".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_username".to_string(),
-        label: "Source username".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_password".to_string(),
-        label: "Source password".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_access_key".to_string(),
-        label: "Source access key".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_secret_key".to_string(),
-        label: "Source secret key".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_region".to_string(),
-        label: "Source region".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_prefix".to_string(),
-        label: "Source prefix".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_port".to_string(),
-        label: "Source port".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "source_ssl".to_string(),
-        label: "Source ssl".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_path".to_string(),
-        label: "Source path".to_string(),
-        kind: vec![ParameterType::String],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_hostname".to_string(),
-        label: "Destination hostname".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_username".to_string(),
-        label: "Destination username".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_password".to_string(),
-        label: "Destination password".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_access_key".to_string(),
-        label: "Destination access key".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_secret_key".to_string(),
-        label: "Destination secret key".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_region".to_string(),
-        label: "Destination region".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_prefix".to_string(),
-        label: "Destination prefix".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_port".to_string(),
-        label: "Destination port".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-      Parameter {
-        identifier: "destination_ssl".to_string(),
-        label: "Destination ssl".to_string(),
-        kind: vec![ParameterType::Credential],
-        required: true,
-      },
-    ]
-  }
-
   fn process(
     &self,
     channel: Option<McaiChannel>,
-    job: &Job,
+    parameters: TransferWorkerParameters,
     job_result: JobResult,
   ) -> Result<JobResult, MessageError> {
-    message::process(channel, job, job_result)
+    message::process(channel, parameters, job_result)
   }
 }
 
-static TRANSFER_EVENT: TransferEvent = TransferEvent {};
-
 fn main() {
-  start_worker(&TRANSFER_EVENT);
+  let message_event = TransferEvent::default();
+  start_worker(message_event);
 }

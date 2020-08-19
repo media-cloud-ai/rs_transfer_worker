@@ -1,4 +1,4 @@
-use crate::{message::StreamData, reader::StreamReader, target_configuration::TargetConfiguration};
+use crate::{message::StreamData, reader::StreamReader};
 use async_std::sync::Sender;
 use async_trait::async_trait;
 use std::fs::File;
@@ -8,12 +8,8 @@ pub struct FileReader {}
 
 #[async_trait]
 impl StreamReader for FileReader {
-  async fn read_stream(
-    &self,
-    target: TargetConfiguration,
-    sender: Sender<StreamData>,
-  ) -> Result<(), Error> {
-    let mut source_file = File::open(&target.path)?;
+  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
+    let mut source_file = File::open(path)?;
 
     if let Ok(metadata) = source_file.metadata() {
       sender.send(StreamData::Size(metadata.len())).await;

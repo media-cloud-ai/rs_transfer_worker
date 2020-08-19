@@ -1,10 +1,10 @@
 use crate::reader::*;
-use crate::target_configuration::*;
 use crate::writer::*;
+use crate::{Secret, TransferWorkerParameters};
 use async_std::{sync, task};
 use mcai_worker_sdk::{
   info,
-  job::{Job, JobResult, JobStatus},
+  job::{JobResult, JobStatus},
   McaiChannel, MessageError,
 };
 use std::io::Error;
@@ -18,46 +18,91 @@ pub enum StreamData {
 
 pub fn process(
   channel: Option<McaiChannel>,
-  job: &Job,
+  parameters: TransferWorkerParameters,
   job_result: JobResult,
 ) -> Result<JobResult, MessageError> {
-  let destination_target = TargetConfiguration::new(&job, "destination")?;
-  let source_target = TargetConfiguration::new(&job, "source")?;
+  let cloned_destination_secret = parameters.destination_secret.clone();
+  let cloned_destination_path = parameters.destination_path.clone();
+  let cloned_job_result = job_result.clone();
 
-  info!(target: &job.job_id.to_string(), "Source: {:?} --> Destination: {:?}", source_target.get_type(), destination_target.get_type());
-
-  let cloned_job = job.clone();
+  info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", parameters.source_secret, cloned_destination_secret);
 
   let (sender, receiver) = sync::channel(1000);
   let reception_task = thread::spawn(move || {
     task::block_on(async {
-      match destination_target.get_type() {
-        ConfigurationType::Ftp => {
-          let writer = FtpWriter {};
+      match cloned_destination_secret {
+        Secret::Ftp {
+          hostname,
+          port,
+          secure,
+          username,
+          password,
+          prefix,
+        } => {
+          let writer = FtpWriter {
+            hostname,
+            port,
+            secure,
+            username,
+            password,
+            prefix,
+          };
           writer
-            .write_stream(destination_target, receiver, channel, &cloned_job)
+            .write_stream(
+              &cloned_destination_path,
+              receiver,
+              channel,
+              cloned_job_result,
+            )
             .await
         }
-        ConfigurationType::LocalFile => {
+        Secret::Http {
+          endpoint: _,
+          method: _,
+          headers: _,
+          body: _,
+        } => {
+          unimplemented!();
+        }
+        Secret::Local {} => {
           let writer = FileWriter {};
           writer
-            .write_stream(destination_target, receiver, channel, &cloned_job)
+            .write_stream(
+              &cloned_destination_path,
+              receiver,
+              channel,
+              cloned_job_result,
+            )
             .await
         }
-        ConfigurationType::S3Bucket => {
-          let writer = S3Writer {};
+        Secret::S3 {
+          hostname,
+          access_key_id,
+          secret_access_key,
+          region,
+          bucket,
+        } => {
+          let writer = S3Writer {
+            hostname,
+            access_key_id,
+            secret_access_key,
+            region,
+            bucket,
+          };
           writer
-            .write_stream(destination_target, receiver, channel, &cloned_job)
+            .write_stream(
+              &cloned_destination_path,
+              receiver,
+              channel,
+              cloned_job_result,
+            )
             .await
-        }
-        ConfigurationType::HttpResource => {
-          unimplemented!();
         }
       }
     })
   });
 
-  start_reader(source_target, sender).map_err(|e| {
+  start_reader(&parameters.source_path, parameters.source_secret, sender).map_err(|e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)
@@ -85,25 +130,62 @@ pub fn process(
 }
 
 fn start_reader(
-  source_target: TargetConfiguration,
+  source_path: &str,
+  source_secret: Secret,
   sender: sync::Sender<StreamData>,
 ) -> Result<(), Error> {
-  match source_target.get_type() {
-    ConfigurationType::Ftp => {
-      let reader = FtpReader {};
-      task::block_on(async { reader.read_stream(source_target, sender).await })
+  match source_secret {
+    Secret::Ftp {
+      hostname,
+      port,
+      secure,
+      username,
+      password,
+      prefix,
+    } => {
+      let reader = FtpReader {
+        hostname,
+        port,
+        secure,
+        username,
+        password,
+        prefix,
+      };
+      task::block_on(async { reader.read_stream(source_path, sender).await })
     }
-    ConfigurationType::HttpResource => {
-      let reader = HttpReader {};
-      task::block_on(async { reader.read_stream(source_target, sender).await })
+    Secret::Http {
+      endpoint,
+      method,
+      headers,
+      body,
+    } => {
+      let reader = HttpReader {
+        endpoint,
+        method,
+        headers,
+        body,
+      };
+      task::block_on(async { reader.read_stream(source_path, sender).await })
     }
-    ConfigurationType::LocalFile => {
+    Secret::Local {} => {
       let reader = FileReader {};
-      task::block_on(async { reader.read_stream(source_target, sender).await })
+      task::block_on(async { reader.read_stream(source_path, sender).await })
     }
-    ConfigurationType::S3Bucket => {
-      let reader = S3Reader {};
-      task::block_on(async { reader.read_stream(source_target, sender).await })
+    Secret::S3 {
+      hostname,
+      access_key_id,
+      secret_access_key,
+      region,
+      bucket,
+    } => {
+      let reader = S3Reader {
+        hostname,
+        access_key_id,
+        secret_access_key,
+        region,
+        bucket,
+      };
+      task::block_on(async { reader.read_stream(source_path, sender).await })
     }
   }
 }

@@ -1,28 +1,51 @@
-use crate::{message::StreamData, reader::StreamReader, target_configuration::TargetConfiguration};
+use crate::endpoint::s3::S3Endpoint;
+use crate::{message::StreamData, reader::StreamReader};
 use async_std::sync::Sender;
 use async_trait::async_trait;
-use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3};
+use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3Client, S3};
 use std::io::{Error, ErrorKind, Read};
 
-pub struct S3Reader {}
+pub struct S3Reader {
+  pub hostname: Option<String>,
+  pub access_key_id: String,
+  pub secret_access_key: String,
+  pub region: Option<String>,
+  pub bucket: String,
+}
+
+impl S3Endpoint for S3Reader {
+  fn get_hostname(&self) -> Option<String> {
+    self.hostname.clone()
+  }
+  fn get_access_key(&self) -> String {
+    self.access_key_id.clone()
+  }
+  fn get_secret_key(&self) -> String {
+    self.secret_access_key.clone()
+  }
+  fn get_region_as_string(&self) -> Option<String> {
+    self.region.clone()
+  }
+}
 
 impl S3Reader {
-  async fn read_file(target: TargetConfiguration, sender: Sender<StreamData>) -> Result<(), Error> {
+  async fn read_file(
+    client: S3Client,
+    path: &str,
+    bucket: &str,
+    sender: Sender<StreamData>,
+  ) -> Result<(), Error> {
     let head_request = HeadObjectRequest {
-      bucket: target.get_s3_bucket()?,
-      key: target.path.clone(),
+      bucket: bucket.to_string(),
+      key: path.to_string(),
       ..Default::default()
     };
 
     let request = GetObjectRequest {
-      bucket: target.get_s3_bucket()?,
-      key: target.path.clone(),
+      bucket: bucket.to_string(),
+      key: path.to_string(),
       ..Default::default()
     };
-
-    let client = target
-      .get_s3_client()
-      .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
 
     let head = client
       .head_object(head_request)
@@ -70,14 +93,18 @@ impl S3Reader {
 
 #[async_trait]
 impl StreamReader for S3Reader {
-  async fn read_stream(
-    &self,
-    target: TargetConfiguration,
-    sender: Sender<StreamData>,
-  ) -> Result<(), Error> {
+  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    let ret = runtime.spawn(async move { S3Reader::read_file(target, sender).await });
+    let cloned_bucket = self.bucket.clone();
+    let cloned_path = path.to_string();
+    let client = self
+      .get_s3_client()
+      .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
+
+    let ret = runtime.spawn(async move {
+      S3Reader::read_file(client, &cloned_path, &cloned_bucket, sender).await
+    });
 
     ret.await.map_err(|e| Error::new(ErrorKind::Other, e))?
   }

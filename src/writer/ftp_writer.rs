@@ -1,17 +1,47 @@
+use crate::endpoint::ftp::FtpEndpoint;
 use crate::message::StreamData;
-use crate::target_configuration::TargetConfiguration;
 use crate::writer::StreamWriter;
 use async_std::sync::Receiver;
 use async_trait::async_trait;
-use mcai_worker_sdk::{info, job::Job, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::job::JobResult;
+use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};
 use std::io::{Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
-pub struct FtpWriter {}
+pub struct FtpWriter {
+  pub hostname: String,
+  pub port: Option<u16>,
+  pub secure: Option<bool>,
+  pub username: Option<String>,
+  pub password: Option<String>,
+  pub prefix: Option<String>,
+}
 
-fn get_directory(target: &TargetConfiguration) -> Vec<String> {
-  let destination_path = Path::new(&target.path);
+impl FtpEndpoint for FtpWriter {
+  fn get_hostname(&self) -> String {
+    self.hostname.clone()
+  }
+
+  fn get_port(&self) -> u16 {
+    self.port.clone().unwrap_or(21)
+  }
+
+  fn is_secure(&self) -> bool {
+    self.secure.clone().unwrap_or(false)
+  }
+
+  fn get_username(&self) -> Option<String> {
+    self.username.clone()
+  }
+
+  fn get_password(&self) -> Option<String> {
+    self.password.clone()
+  }
+}
+
+fn get_directory(path: &str) -> Vec<String> {
+  let destination_path = Path::new(path);
   destination_path
     .parent()
     .unwrap_or_else(|| Path::new("/"))
@@ -20,8 +50,8 @@ fn get_directory(target: &TargetConfiguration) -> Vec<String> {
     .collect()
 }
 
-fn get_filename(target: &TargetConfiguration) -> Result<String, Error> {
-  let destination_path = Path::new(&target.path);
+fn get_filename(path: &str) -> Result<String, Error> {
+  let destination_path = Path::new(path);
   Ok(
     destination_path
       .file_name()
@@ -36,20 +66,20 @@ fn get_filename(target: &TargetConfiguration) -> Result<String, Error> {
 impl StreamWriter for FtpWriter {
   async fn write_stream(
     &self,
-    target: TargetConfiguration,
+    path: &str,
     receiver: Receiver<StreamData>,
     channel: Option<McaiChannel>,
-    job: &Job,
+    job_result: JobResult,
   ) -> Result<(), Error> {
-    let mut ftp_stream = target
+    let mut ftp_stream = self
       .get_ftp_stream()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    let destination_directory = get_directory(&target);
-    let filename = get_filename(&target)?;
+    let destination_directory = get_directory(path);
+    let filename = get_filename(path)?;
 
     // create destination directories if not exists
-    let prefix = target.prefix.clone().unwrap_or_else(|| "/".to_string());
+    let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let mut root_dir = PathBuf::from(prefix);
 
     for folder in destination_directory.iter() {
@@ -84,15 +114,15 @@ impl StreamWriter for FtpWriter {
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
         Ok(StreamData::Eof) => {
-          info!(target: &job.job_id.to_string(), "packet size: min = {}, max= {}", min_size, max_size);
+          info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
           stream.flush()?;
 
-          info!(target: &job.job_id.to_string(), "endding FTP data connection");
+          info!(target: &job_result.get_str_job_id(), "endding FTP data connection");
           ftp_stream
             .finish_put_file()
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-          info!(target: &job.job_id.to_string(), "closing FTP connection");
+          info!(target: &job_result.get_str_job_id(), "closing FTP connection");
           ftp_stream
             .quit()
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
@@ -108,7 +138,7 @@ impl StreamWriter for FtpWriter {
 
             if percent as u8 > prev_percent {
               prev_percent = percent as u8;
-              publish_job_progression(channel.clone(), job, percent as u8)
+              publish_job_progression(channel.clone(), job_result.get_job_id(), percent as u8)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }
