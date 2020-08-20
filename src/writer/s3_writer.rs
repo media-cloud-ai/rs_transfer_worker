@@ -242,3 +242,25 @@ impl StreamWriter for S3Writer {
     }
   }
 }
+
+#[test]
+pub fn test_s3_writer_getters() {
+  let hostname = Some("s3.server.name".to_string());
+  let access_key_id = "S3_ACCESS_KEY".to_string();
+  let secret_access_key = "S3_SECRET_KEY".to_string();
+  let region = Some("s3-region".to_string());
+  let bucket = "s3-bucket".to_string();
+
+  let s3_writer = S3Writer {
+    hostname: hostname.clone(),
+    access_key_id: access_key_id.clone(),
+    secret_access_key: secret_access_key.clone(),
+    region: region.clone(),
+    bucket: bucket.clone(),
+  };
+
+  assert_eq!(s3_writer.get_hostname(), hostname);
+  assert_eq!(s3_writer.get_access_key(), access_key_id);
+  assert_eq!(s3_writer.get_secret_key(), secret_access_key);
+  assert_eq!(s3_writer.get_region_as_string(), region);
+}

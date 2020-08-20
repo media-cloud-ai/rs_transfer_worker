@@ -152,3 +152,50 @@ impl StreamWriter for FtpWriter {
     Ok(())
   }
 }
+
+#[test]
+pub fn test_ftp_writer_getters() {
+  let hostname = "ftp.server.name".to_string();
+  let port = None;
+  let secure = None;
+  let username = Some("user".to_string());
+  let password = Some("password".to_string());
+  let prefix = None;
+
+  let ftp_writer = FtpWriter {
+    hostname: hostname.clone(),
+    port: port.clone(),
+    secure: secure.clone(),
+    username: username.clone(),
+    password: password.clone(),
+    prefix: prefix.clone(),
+  };
+
+  assert_eq!(ftp_writer.get_hostname(), hostname);
+  assert_eq!(ftp_writer.get_port(), 21);
+  assert_eq!(ftp_writer.is_secure(), false);
+  assert_eq!(ftp_writer.get_username(), username);
+  assert_eq!(ftp_writer.get_password(), password);
+}
+
+#[test]
+pub fn test_get_directory() {
+  let path = "/path/to/directory/file.ext";
+  let directory = get_directory(path);
+  assert_eq!(
+    directory,
+    vec![
+      "/".to_string(),
+      "path".to_string(),
+      "to".to_string(),
+      "directory".to_string()
+    ]
+  );
+}
+
+#[test]
+pub fn test_get_filename() {
+  let path = "/path/to/directory/file.ext";
+  let filename = get_filename(path).unwrap();
+  assert_eq!(filename, "file.ext");
+}

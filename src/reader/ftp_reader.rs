@@ -80,3 +80,28 @@ impl StreamReader for FtpReader {
     Ok(())
   }
 }
+
+#[test]
+pub fn test_ftp_reader_getters() {
+  let hostname = "ftp.server.name".to_string();
+  let port = None;
+  let secure = None;
+  let username = Some("user".to_string());
+  let password = Some("password".to_string());
+  let prefix = None;
+
+  let ftp_reader = FtpReader {
+    hostname: hostname.clone(),
+    port: port.clone(),
+    secure: secure.clone(),
+    username: username.clone(),
+    password: password.clone(),
+    prefix: prefix.clone(),
+  };
+
+  assert_eq!(ftp_reader.get_hostname(), hostname);
+  assert_eq!(ftp_reader.get_port(), 21);
+  assert_eq!(ftp_reader.is_secure(), false);
+  assert_eq!(ftp_reader.get_username(), username);
+  assert_eq!(ftp_reader.get_password(), password);
+}

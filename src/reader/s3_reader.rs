@@ -109,3 +109,25 @@ impl StreamReader for S3Reader {
     ret.await.map_err(|e| Error::new(ErrorKind::Other, e))?
   }
 }
+
+#[test]
+pub fn test_s3_reader_getters() {
+  let hostname = Some("s3.server.name".to_string());
+  let access_key_id = "S3_ACCESS_KEY".to_string();
+  let secret_access_key = "S3_SECRET_KEY".to_string();
+  let region = Some("s3-region".to_string());
+  let bucket = "s3-bucket".to_string();
+
+  let s3_reader = S3Reader {
+    hostname: hostname.clone(),
+    access_key_id: access_key_id.clone(),
+    secret_access_key: secret_access_key.clone(),
+    region: region.clone(),
+    bucket: bucket.clone(),
+  };
+
+  assert_eq!(s3_reader.get_hostname(), hostname);
+  assert_eq!(s3_reader.get_access_key(), access_key_id);
+  assert_eq!(s3_reader.get_secret_key(), secret_access_key);
+  assert_eq!(s3_reader.get_region_as_string(), region);
+}

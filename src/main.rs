@@ -4,8 +4,10 @@ extern crate serde_derive;
 mod endpoint;
 mod message;
 mod reader;
+mod secret;
 mod writer;
 
+use crate::secret::Secret;
 use mcai_worker_sdk::{
   job::JobResult, start_worker, JsonSchema, McaiChannel, MessageError, MessageEvent, Version,
 };
@@ -16,43 +18,6 @@ pub mod built_info {
 
 #[derive(Debug, Default)]
 struct TransferEvent {}
-
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type")]
-enum Secret {
-  #[serde(rename = "ftp")]
-  Ftp {
-    hostname: String,
-    port: Option<u16>,
-    secure: Option<bool>,
-    username: Option<String>,
-    password: Option<String>,
-    prefix: Option<String>,
-  },
-  #[serde(rename = "http")]
-  Http {
-    endpoint: String,
-    method: String,
-    headers: String,
-    body: String,
-  },
-  #[serde(rename = "local")]
-  Local,
-  #[serde(rename = "s3")]
-  S3 {
-    hostname: Option<String>,
-    access_key_id: String,
-    secret_access_key: String,
-    region: Option<String>,
-    bucket: String,
-  },
-}
-
-impl Default for Secret {
-  fn default() -> Self {
-    Secret::Local
-  }
-}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TransferWorkerParameters {
