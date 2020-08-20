@@ -15,9 +15,9 @@ pub enum Secret {
   #[serde(rename = "http")]
   Http {
     endpoint: String,
-    method: String,
-    headers: String,
-    body: String,
+    method: Option<String>,
+    headers: Option<String>,
+    body: Option<String>,
   },
   #[serde(rename = "local")]
   Local,
@@ -73,9 +73,9 @@ pub fn test_secret_http() {
   }"#;
   let expected = Secret::Http {
     endpoint: "http://www.hostname.com".to_string(),
-    method: "POST".to_string(),
-    headers: "{\"content-type\": \"application/json\"}".to_string(),
-    body: "{\"Johnny\": \"Ca$h\"}".to_string(),
+    method: Some("POST".to_string()),
+    headers: Some("{\"content-type\": \"application/json\"}".to_string()),
+    body: Some("{\"Johnny\": \"Ca$h\"}".to_string()),
   };
   let secret: Secret = serde_json::from_str(json_str).unwrap();
   assert_eq!(secret, expected);

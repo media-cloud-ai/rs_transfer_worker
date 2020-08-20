@@ -4,7 +4,17 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "https://media-io.com"
+			"value" : "index.html"
+		},
+		{
+			"id": "source_secret",
+			"type" : "truc",
+			"value" : {
+				"type": "http",
+				"endpoint": "https://media-io.com",
+				"method": "GET",
+				"headers": "{\"content-type\": \"text/html\"}"
+			}
 		},
 		{
 			"id": "destination_path",
