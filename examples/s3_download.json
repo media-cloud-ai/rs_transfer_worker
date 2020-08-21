@@ -7,24 +7,15 @@
 			"value" : "file.ext"
 		},
 		{
-			"id": "source_prefix",
-			"type" : "credential",
-			"value" : "S3_BUCKET"
-		},
-		{
-			"id": "source_access_key",
-			"type" : "credential",
-			"value" : "S3_ACCESS_KEY"
-		},
-		{
-			"id": "source_secret_key",
-			"type" : "credential",
-			"value" : "S3_SECRET_KEY"
-		},
-		{
-			"id": "source_region",
-			"type" : "credential",
-			"value" : "S3_REGION"
+			"id": "source_secret",
+			"type" : "string",
+			"value" : {
+				"type": "s3",
+				"access_key_id": "S3_SERVER_ACCESS_KEY",
+				"secret_access_key": "S3_SERVER_SECRET_KEY",
+				"region": "eu-west-1",
+				"bucket": "test"
+			}
 		},
 		{
 			"id": "destination_path",
