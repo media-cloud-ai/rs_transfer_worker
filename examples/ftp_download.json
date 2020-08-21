@@ -7,24 +7,16 @@
 			"value" : "file.ext"
 		},
 		{
-			"id": "source_prefix",
-			"type" : "credential",
-			"value" : "FTP_PREFIX"
-		},
-		{
-			"id": "source_password",
-			"type" : "credential",
-			"value" : "FTP_PASSWORD"
-		},
-		{
-			"id": "source_username",
-			"type" : "credential",
-			"value" : "FTP_USERNAME"
-		},
-		{
-			"id": "source_hostname",
-			"type" : "credential",
-			"value" : "FTP_HOSTNAME"
+			"id": "source_secret",
+			"type" : "string",
+			"value" : {
+				"type": "ftp",
+				"hostname": "ftp.server",
+				"secure": false,
+				"username": "ftp_user",
+				"password": "ftp_password",
+				"prefix": "/path/to/root"
+			}
 		},
 		{
 			"id": "destination_path",

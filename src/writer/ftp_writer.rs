@@ -3,8 +3,9 @@ use crate::message::StreamData;
 use crate::writer::StreamWriter;
 use async_std::sync::Receiver;
 use async_trait::async_trait;
+use ftp::FtpStream;
 use mcai_worker_sdk::job::JobResult;
-use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::{debug, info, publish_job_progression, McaiChannel};
 use std::io::{Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
@@ -62,19 +63,15 @@ fn get_filename(path: &str) -> Result<String, Error> {
   )
 }
 
-#[async_trait]
-impl StreamWriter for FtpWriter {
-  async fn write_stream(
+impl FtpWriter {
+  async fn upload_file(
     &self,
+    ftp_stream: &mut FtpStream,
     path: &str,
     receiver: Receiver<StreamData>,
     channel: Option<McaiChannel>,
     job_result: JobResult,
   ) -> Result<(), Error> {
-    let mut ftp_stream = self
-      .get_ftp_stream()
-      .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
     let destination_directory = get_directory(path);
     let filename = get_filename(path)?;
 
@@ -105,6 +102,7 @@ impl StreamWriter for FtpWriter {
     let mut min_size = std::usize::MAX;
     let mut max_size = 0;
 
+    debug!(target: &job_result.get_str_job_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
     let mut stream = ftp_stream
       .start_put_file(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
@@ -116,16 +114,6 @@ impl StreamWriter for FtpWriter {
         Ok(StreamData::Eof) => {
           info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
           stream.flush()?;
-
-          info!(target: &job_result.get_str_job_id(), "endding FTP data connection");
-          ftp_stream
-            .finish_put_file()
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-          info!(target: &job_result.get_str_job_id(), "closing FTP connection");
-          ftp_stream
-            .quit()
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
           break;
         }
         Ok(StreamData::Data(ref data)) => {
@@ -148,6 +136,36 @@ impl StreamWriter for FtpWriter {
         _ => {}
       }
     }
+    Ok(())
+  }
+}
+
+#[async_trait]
+impl StreamWriter for FtpWriter {
+  async fn write_stream(
+    &self,
+    path: &str,
+    receiver: Receiver<StreamData>,
+    channel: Option<McaiChannel>,
+    job_result: JobResult,
+  ) -> Result<(), Error> {
+    let mut ftp_stream = self
+      .get_ftp_stream()
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+    self
+      .upload_file(&mut ftp_stream, path, receiver, channel, job_result.clone())
+      .await?;
+
+    info!(target: &job_result.get_str_job_id(), "ending FTP data connection");
+    ftp_stream
+      .finish_put_file()
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+    info!(target: &job_result.get_str_job_id(), "closing FTP connection");
+    ftp_stream
+      .quit()
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     Ok(())
   }
