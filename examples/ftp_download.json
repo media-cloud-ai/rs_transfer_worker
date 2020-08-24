@@ -4,24 +4,24 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "TEST_FILE.txt"
 		},
 		{
 			"id": "source_secret",
 			"type" : "string",
 			"value" : {
 				"type": "ftp",
-				"hostname": "ftp.server",
+				"hostname": "localhost",
 				"secure": false,
 				"username": "ftp_user",
 				"password": "ftp_password",
-				"prefix": "/path/to/root"
+				"prefix": "/data/"
 			}
 		},
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "./share/FTP_DOWNLOADED_FILE.txt"
 		}
 	]
 }

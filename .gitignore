@@ -6,3 +6,6 @@
 *.iml
 
 .env
+
+### Benchmark files ###
+**/.minio.sys/

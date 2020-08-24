@@ -4,23 +4,23 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "Cargo.toml"
 		},
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "FTP_UPLOADED_FILE.toml"
 		},
 		{
 			"id": "destination_secret",
 			"type" : "string",
 			"value" : {
 				"type": "ftp",
-				"hostname": "ftp.server",
+				"hostname": "localhost",
 				"secure": false,
 				"username": "ftp_user",
 				"password": "ftp_password",
-				"prefix": "/path/to/root"
+				"prefix": "/data"
 			}
 		}
 	]

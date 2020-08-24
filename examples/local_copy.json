@@ -9,7 +9,7 @@
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "/tmp/Cargo.toml"
+			"value" : "./share/LOCAL_COPIED_FILE.toml"
 		}
 	]
 }

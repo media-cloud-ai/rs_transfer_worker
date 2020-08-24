@@ -4,23 +4,23 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "TEST_FILE.txt"
 		},
 		{
 			"id": "source_secret",
 			"type" : "string",
 			"value" : {
 				"type": "s3",
+				"hostname": "http://127.0.0.1:9000",
 				"access_key_id": "S3_SERVER_ACCESS_KEY",
 				"secret_access_key": "S3_SERVER_SECRET_KEY",
-				"region": "eu-west-1",
-				"bucket": "test"
+				"bucket": "bucket"
 			}
 		},
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "./share/S3_DOWNLOADED_FILE.txt"
 		}
 	]
 }
