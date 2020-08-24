@@ -2,14 +2,14 @@
 extern crate serde_derive;
 
 mod endpoint;
-mod message;
+pub mod message;
 mod reader;
-mod secret;
+pub mod secret;
 mod writer;
 
 use crate::secret::Secret;
 use mcai_worker_sdk::{
-  job::JobResult, start_worker, JsonSchema, McaiChannel, MessageError, MessageEvent, Version,
+  job::JobResult, JsonSchema, McaiChannel, MessageError, MessageEvent, Version,
 };
 
 pub mod built_info {
@@ -17,7 +17,7 @@ pub mod built_info {
 }
 
 #[derive(Debug, Default)]
-struct TransferEvent {}
+pub struct TransferEvent {}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TransferWorkerParameters {
@@ -55,9 +55,4 @@ It support in output: Local, FTP, S3."#
   ) -> Result<JobResult, MessageError> {
     message::process(channel, parameters, job_result)
   }
-}
-
-fn main() {
-  let message_event = TransferEvent::default();
-  start_worker(message_event);
 }
