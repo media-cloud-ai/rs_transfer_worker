@@ -19,7 +19,7 @@ pub mod built_info {
 #[derive(Debug, Default)]
 pub struct TransferEvent {}
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, JsonSchema)]
 pub struct TransferWorkerParameters {
   source_path: String,
   source_secret: Option<Secret>,

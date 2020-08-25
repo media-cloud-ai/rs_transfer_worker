@@ -12,6 +12,15 @@ services:
       - ./ftp/:/data
     restart: always
 
+  http_nginx:
+    image: nginx
+    container_name: http_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./http/:/usr/share/nginx/html
+    restart: always
+
   s3_minio:
     image: minio/minio
     container_name: s3_minio

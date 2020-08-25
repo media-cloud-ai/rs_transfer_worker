@@ -11,7 +11,7 @@
 			"type" : "truc",
 			"value" : {
 				"type": "http",
-				"endpoint": "https://media-io.com",
+				"endpoint": "http://localhost:8080",
 				"method": "GET",
 				"headers": "{\"content-type\": \"text/html\"}"
 			}
@@ -19,7 +19,7 @@
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "index.html"
+			"value" : "./share/HTTP_DOWNLOADED_FILE.html"
 		}
 	]
 }
