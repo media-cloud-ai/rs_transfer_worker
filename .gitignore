@@ -9,7 +9,7 @@
 
 ### Benchmark files ###
 **/.minio.sys/
-share/**/FTP_*_FILE.*
-share/**/HTTP_*_FILE.*
-share/**/LOCAL_*_FILE.*
-share/**/S3_*_FILE.*
+tests/**/FTP_*_FILE.*
+tests/**/HTTP_*_FILE.*
+tests/**/LOCAL_*_FILE.*
+tests/**/S3_*_FILE.*

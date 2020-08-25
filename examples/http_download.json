@@ -19,7 +19,7 @@
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "./share/HTTP_DOWNLOADED_FILE.html"
+			"value" : "./tests/HTTP_DOWNLOADED_FILE.html"
 		}
 	]
 }

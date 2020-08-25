@@ -20,7 +20,7 @@
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "./share/S3_DOWNLOADED_FILE.txt"
+			"value" : "./tests/S3_DOWNLOADED_FILE.txt"
 		}
 	]
 }

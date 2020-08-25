@@ -21,7 +21,7 @@
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "./share/FTP_DOWNLOADED_FILE.txt"
+			"value" : "./tests/FTP_DOWNLOADED_FILE.txt"
 		}
 	]
 }

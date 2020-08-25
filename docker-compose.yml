@@ -9,7 +9,7 @@ services:
     environment:
       - "USERS=ftp_user|ftp_password|/data"
     volumes:
-      - ./ftp/:/data
+      - ./tests/ftp/:/data
     restart: always
 
   http_nginx:
@@ -18,7 +18,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./http/:/usr/share/nginx/html
+      - ./tests/http/:/usr/tests/nginx/html
     restart: always
 
   s3_minio:
@@ -27,7 +27,7 @@ services:
     ports:
       - "9000:9000"
     volumes:
-      - ./minio:/data
+      - ./tests/minio:/data
     environment:
       - "MINIO_ACCESS_KEY=S3_SERVER_ACCESS_KEY"
       - "MINIO_SECRET_KEY=S3_SERVER_SECRET_KEY"
