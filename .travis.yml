@@ -35,6 +35,13 @@ matrix:
         - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
       script:
         - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+      env:
+        # Allow Tarpaulin failure since time-rs is not up-to-date with https://github.com/xd009642/tarpaulin#ignoring-code-in-files
+        - ALLOW_FAILURE=TRUE
+
+  allow_failures:
+    - env:
+      - ALLOW_FAILURE=TRUE
 
 script:
   - cargo test
