@@ -9,7 +9,7 @@ use crate::endpoint::http::{get_headers, get_method, get_url};
 use crate::{message::StreamData, reader::StreamReader};
 
 pub struct HttpReader {
-  pub endpoint: String,
+  pub endpoint: Option<String>,
   pub method: Option<String>,
   pub headers: Option<String>,
   pub body: Option<String>,
@@ -28,8 +28,14 @@ impl StreamReader for HttpReader {
         } else {
           Method::GET
         };
-        let mut url = get_url(&self.endpoint)?;
-        url.set_path(path);
+
+        let url = if let Some(endpoint) = &self.endpoint {
+          let mut url = get_url(&endpoint)?;
+          url.set_path(path);
+          url
+        } else {
+          get_url(path)?
+        };
 
         let mut request_builder = client.request(method, url);
         if let Some(json_headers) = &self.headers {

@@ -14,7 +14,7 @@ pub enum Secret {
   },
   #[serde(rename = "http")]
   Http {
-    endpoint: String,
+    endpoint: Option<String>,
     method: Option<String>,
     headers: Option<String>,
     body: Option<String>,
@@ -72,7 +72,7 @@ pub fn test_secret_http() {
     "body": "{\"Johnny\": \"Ca$h\"}"
   }"#;
   let expected = Secret::Http {
-    endpoint: "http://www.hostname.com".to_string(),
+    endpoint: Some("http://www.hostname.com".to_string()),
     method: Some("POST".to_string()),
     headers: Some("{\"content-type\": \"application/json\"}".to_string()),
     body: Some("{\"Johnny\": \"Ca$h\"}".to_string()),

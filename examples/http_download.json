@@ -4,16 +4,13 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "index.html"
+			"value" : "http://localhost:8080/index.html"
 		},
 		{
 			"id": "source_secret",
 			"type" : "truc",
 			"value" : {
-				"type": "http",
-				"endpoint": "http://localhost:8080",
-				"method": "GET",
-				"headers": "{\"content-type\": \"text/html\"}"
+				"type": "http"
 			}
 		},
 		{
