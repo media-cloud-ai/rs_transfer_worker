@@ -1,17 +1,48 @@
+use crate::endpoint::ftp::FtpEndpoint;
 use crate::message::StreamData;
-use crate::target_configuration::TargetConfiguration;
 use crate::writer::StreamWriter;
 use async_std::sync::Receiver;
 use async_trait::async_trait;
-use mcai_worker_sdk::{info, job::Job, publish_job_progression, McaiChannel};
+use ftp::FtpStream;
+use mcai_worker_sdk::job::JobResult;
+use mcai_worker_sdk::{debug, info, publish_job_progression, McaiChannel};
 use std::io::{Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
-pub struct FtpWriter {}
+pub struct FtpWriter {
+  pub hostname: String,
+  pub port: Option<u16>,
+  pub secure: Option<bool>,
+  pub username: Option<String>,
+  pub password: Option<String>,
+  pub prefix: Option<String>,
+}
 
-fn get_directory(target: &TargetConfiguration) -> Vec<String> {
-  let destination_path = Path::new(&target.path);
+impl FtpEndpoint for FtpWriter {
+  fn get_hostname(&self) -> String {
+    self.hostname.clone()
+  }
+
+  fn get_port(&self) -> u16 {
+    self.port.clone().unwrap_or(21)
+  }
+
+  fn is_secure(&self) -> bool {
+    self.secure.clone().unwrap_or(false)
+  }
+
+  fn get_username(&self) -> Option<String> {
+    self.username.clone()
+  }
+
+  fn get_password(&self) -> Option<String> {
+    self.password.clone()
+  }
+}
+
+fn get_directory(path: &str) -> Vec<String> {
+  let destination_path = Path::new(path);
   destination_path
     .parent()
     .unwrap_or_else(|| Path::new("/"))
@@ -20,8 +51,8 @@ fn get_directory(target: &TargetConfiguration) -> Vec<String> {
     .collect()
 }
 
-fn get_filename(target: &TargetConfiguration) -> Result<String, Error> {
-  let destination_path = Path::new(&target.path);
+fn get_filename(path: &str) -> Result<String, Error> {
+  let destination_path = Path::new(path);
   Ok(
     destination_path
       .file_name()
@@ -32,24 +63,20 @@ fn get_filename(target: &TargetConfiguration) -> Result<String, Error> {
   )
 }
 
-#[async_trait]
-impl StreamWriter for FtpWriter {
-  async fn write_stream(
+impl FtpWriter {
+  async fn upload_file(
     &self,
-    target: TargetConfiguration,
+    ftp_stream: &mut FtpStream,
+    path: &str,
     receiver: Receiver<StreamData>,
     channel: Option<McaiChannel>,
-    job: &Job,
+    job_result: JobResult,
   ) -> Result<(), Error> {
-    let mut ftp_stream = target
-      .get_ftp_stream()
-      .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-    let destination_directory = get_directory(&target);
-    let filename = get_filename(&target)?;
+    let destination_directory = get_directory(path);
+    let filename = get_filename(path)?;
 
     // create destination directories if not exists
-    let prefix = target.prefix.clone().unwrap_or_else(|| "/".to_string());
+    let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let mut root_dir = PathBuf::from(prefix);
 
     for folder in destination_directory.iter() {
@@ -75,6 +102,7 @@ impl StreamWriter for FtpWriter {
     let mut min_size = std::usize::MAX;
     let mut max_size = 0;
 
+    debug!(target: &job_result.get_str_job_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
     let mut stream = ftp_stream
       .start_put_file(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
@@ -84,18 +112,8 @@ impl StreamWriter for FtpWriter {
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
         Ok(StreamData::Eof) => {
-          info!(target: &job.job_id.to_string(), "packet size: min = {}, max= {}", min_size, max_size);
+          info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
           stream.flush()?;
-
-          info!(target: &job.job_id.to_string(), "endding FTP data connection");
-          ftp_stream
-            .finish_put_file()
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-          info!(target: &job.job_id.to_string(), "closing FTP connection");
-          ftp_stream
-            .quit()
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
           break;
         }
         Ok(StreamData::Data(ref data)) => {
@@ -108,7 +126,7 @@ impl StreamWriter for FtpWriter {
 
             if percent as u8 > prev_percent {
               prev_percent = percent as u8;
-              publish_job_progression(channel.clone(), job, percent as u8)
+              publish_job_progression(channel.clone(), job_result.get_job_id(), percent as u8)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }
@@ -118,7 +136,84 @@ impl StreamWriter for FtpWriter {
         _ => {}
       }
     }
+    Ok(())
+  }
+}
+
+#[async_trait]
+impl StreamWriter for FtpWriter {
+  async fn write_stream(
+    &self,
+    path: &str,
+    receiver: Receiver<StreamData>,
+    channel: Option<McaiChannel>,
+    job_result: JobResult,
+  ) -> Result<(), Error> {
+    let mut ftp_stream = self
+      .get_ftp_stream()
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+    self
+      .upload_file(&mut ftp_stream, path, receiver, channel, job_result.clone())
+      .await?;
+
+    info!(target: &job_result.get_str_job_id(), "ending FTP data connection");
+    ftp_stream
+      .finish_put_file()
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+    info!(target: &job_result.get_str_job_id(), "closing FTP connection");
+    ftp_stream
+      .quit()
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     Ok(())
   }
+}
+
+#[test]
+pub fn test_ftp_writer_getters() {
+  let hostname = "ftp.server.name".to_string();
+  let port = None;
+  let secure = None;
+  let username = Some("user".to_string());
+  let password = Some("password".to_string());
+  let prefix = None;
+
+  let ftp_writer = FtpWriter {
+    hostname: hostname.clone(),
+    port: port.clone(),
+    secure: secure.clone(),
+    username: username.clone(),
+    password: password.clone(),
+    prefix: prefix.clone(),
+  };
+
+  assert_eq!(ftp_writer.get_hostname(), hostname);
+  assert_eq!(ftp_writer.get_port(), 21);
+  assert_eq!(ftp_writer.is_secure(), false);
+  assert_eq!(ftp_writer.get_username(), username);
+  assert_eq!(ftp_writer.get_password(), password);
+}
+
+#[test]
+pub fn test_get_directory() {
+  let path = "/path/to/directory/file.ext";
+  let directory = get_directory(path);
+  assert_eq!(
+    directory,
+    vec![
+      "/".to_string(),
+      "path".to_string(),
+      "to".to_string(),
+      "directory".to_string()
+    ]
+  );
+}
+
+#[test]
+pub fn test_get_filename() {
+  let path = "/path/to/directory/file.ext";
+  let filename = get_filename(path).unwrap();
+  assert_eq!(filename, "file.ext");
 }

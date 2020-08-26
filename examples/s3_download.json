@@ -4,32 +4,23 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "TEST_FILE.txt"
 		},
 		{
-			"id": "source_prefix",
-			"type" : "credential",
-			"value" : "S3_BUCKET"
-		},
-		{
-			"id": "source_access_key",
-			"type" : "credential",
-			"value" : "S3_ACCESS_KEY"
-		},
-		{
-			"id": "source_secret_key",
-			"type" : "credential",
-			"value" : "S3_SECRET_KEY"
-		},
-		{
-			"id": "source_region",
-			"type" : "credential",
-			"value" : "S3_REGION"
+			"id": "source_secret",
+			"type" : "string",
+			"value" : {
+				"type": "s3",
+				"hostname": "http://127.0.0.1:9000",
+				"access_key_id": "S3_SERVER_ACCESS_KEY",
+				"secret_access_key": "S3_SERVER_SECRET_KEY",
+				"bucket": "bucket"
+			}
 		},
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "file.ext"
+			"value" : "./tests/S3_DOWNLOADED_FILE.txt"
 		}
 	]
 }

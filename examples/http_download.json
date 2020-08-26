@@ -4,12 +4,19 @@
 		{
 			"id": "source_path",
 			"type" : "string",
-			"value" : "https://media-io.com"
+			"value" : "http://localhost:8080/index.html"
+		},
+		{
+			"id": "source_secret",
+			"type" : "truc",
+			"value" : {
+				"type": "http"
+			}
 		},
 		{
 			"id": "destination_path",
 			"type" : "string",
-			"value" : "index.html"
+			"value" : "./tests/HTTP_DOWNLOADED_FILE.html"
 		}
 	]
 }

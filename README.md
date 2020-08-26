@@ -1,4 +1,4 @@
-# Rust Tranfer worker
+# Rust Transfer worker
 
 ### List of supported remote access to Read/Download data
 
@@ -13,5 +13,31 @@
 - [x] Upload FTP file
 - [x] Upload S3 file
 
-## Requirements
 
+## Examples
+
+Some examples message files can be found in the `./examples` directory
+
+
+## Dev and benchmarks environment
+
+To setup an environment to test or check performances of the worker, execute the following command from the project directory:
+```
+docker-compose up
+```
+This will start a FTP server, a HTTP endpoint and a S3 bucket, based on the `./tests` tree files.
+
+To stop the Docker containers, run:
+```
+docker-compose down
+```
+
+
+## Benchmarks
+
+Once the environment is set, benchmarks can be executed running the following command:
+```
+cargo bench
+```
+
+This benches are based on the `./examples` message files.
