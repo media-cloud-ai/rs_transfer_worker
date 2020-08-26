@@ -101,9 +101,17 @@ pub fn test_get_url() {
     "http://www.media-io.com/".to_string(),
     get_url("http://www.media-io.com").unwrap().to_string()
   );
+
   assert_eq!(
     "https://www.media-io.com/".to_string(),
     get_url("https://www.media-io.com").unwrap().to_string()
+  );
+
+  assert_eq!(
+    "https://www.media-io.com/resource?param=value".to_string(),
+    get_url("https://www.media-io.com/resource?param=value")
+      .unwrap()
+      .to_string()
   );
 
   let error = get_url("http://media-io com").unwrap_err();
