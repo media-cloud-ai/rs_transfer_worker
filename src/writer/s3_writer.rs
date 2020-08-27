@@ -52,7 +52,7 @@ impl S3Writer {
     let object = self
       .get_s3_client()?
       .create_multipart_upload(request)
-      .sync()
+      .await
       .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
 
     object
@@ -79,7 +79,7 @@ impl S3Writer {
     let object = self
       .get_s3_client()?
       .upload_part(request)
-      .sync()
+      .await
       .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
 
     Ok(CompletedPart {
@@ -105,7 +105,7 @@ impl S3Writer {
     self
       .get_s3_client()?
       .complete_multipart_upload(request)
-      .sync()
+      .await
       .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
 
     Ok(())

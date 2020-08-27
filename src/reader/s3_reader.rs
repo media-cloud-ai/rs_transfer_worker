@@ -49,13 +49,13 @@ impl S3Reader {
 
     let head = client
       .head_object(head_request)
-      .sync()
+      .await
       .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
 
     if let Some(file_size) = head.content_length {
       sender.send(StreamData::Size(file_size as u64)).await;
     }
-    let object = client.get_object(request).sync();
+    let object = client.get_object(request).await;
 
     let object = object.map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
 
