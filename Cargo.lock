@@ -3123,7 +3123,7 @@ dependencies = [
  "mcai_worker_sdk",
  "mockito",
  "reqwest",
- "rusoto_core 0.42.0",
+ "rusoto_core 0.43.0",
  "rusoto_credential 0.43.0",
  "rusoto_mock",
  "rusoto_s3",
