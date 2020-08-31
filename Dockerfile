@@ -9,9 +9,9 @@ RUN apt-get update && \
     cargo install --path .
 
 FROM debian:stretch
-COPY --from=builder /usr/local/cargo/bin/tranfer_worker /usr/bin
+COPY --from=builder /usr/local/cargo/bin/transfer_worker /usr/bin
 
 RUN apt update && apt install -y libssl1.1 ca-certificates
 
 ENV AMQP_QUEUE job_transfer
-CMD tranfer_worker
+CMD transfer_worker
