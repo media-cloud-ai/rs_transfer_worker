@@ -1,7 +1,6 @@
 [package]
 name = "transfer_worker"
-
-version = "0.3.0"
+version = "0.3.1"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
