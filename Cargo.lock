@@ -987,7 +987,7 @@ dependencies = [
  "http",
  "indexmap",
  "slab",
- "tokio",
+ "tokio 0.2.22",
  "tokio-util",
  "tracing",
 ]
@@ -1098,7 +1098,7 @@ dependencies = [
  "itoa",
  "pin-project",
  "socket2",
- "tokio",
+ "tokio 0.2.22",
  "tower-service",
  "tracing",
  "want",
@@ -1113,7 +1113,7 @@ dependencies = [
  "bytes 0.5.6",
  "hyper",
  "native-tls",
- "tokio",
+ "tokio 0.2.22",
  "tokio-tls",
 ]
 
@@ -1298,7 +1298,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sysinfo",
- "tokio",
+ "tokio 0.2.22",
  "uuid",
  "xml-rs",
  "yaserde",
@@ -1936,7 +1936,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "tokio",
+ "tokio 0.2.22",
  "tokio-tls",
  "url",
  "wasm-bindgen",
@@ -1969,7 +1969,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
- "tokio",
+ "tokio 0.2.22",
  "xml-rs",
 ]
 
@@ -1989,7 +1989,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shlex",
- "tokio",
+ "tokio 0.2.22",
  "zeroize",
 ]
 
@@ -2043,7 +2043,7 @@ dependencies = [
  "serde",
  "sha2",
  "time 0.2.22",
- "tokio",
+ "tokio 0.2.22",
 ]
 
 [[package]]
@@ -2569,6 +2569,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71f1b20504fd0aa9dab3ae17e8c4dd9431e5e08fd6921689f9745a4004883a17"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
 name = "tokio-io"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2597,7 +2606,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a70f4fcd7b3b24fb194f837560168208f669ca8cb70d0c4b862944452396343"
 dependencies = [
  "native-tls",
- "tokio",
+ "tokio 0.2.22",
 ]
 
 [[package]]
@@ -2611,7 +2620,7 @@ dependencies = [
  "futures-sink",
  "log",
  "pin-project-lite",
- "tokio",
+ "tokio 0.2.22",
 ]
 
 [[package]]
@@ -2652,7 +2661,7 @@ dependencies = [
 
 [[package]]
 name = "transfer_worker"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-std",
  "async-trait",
@@ -2674,7 +2683,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "threadpool",
- "tokio",
+ "tokio 0.3.2",
  "tokio-io",
  "url",
 ]
