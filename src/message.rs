@@ -8,6 +8,7 @@ use mcai_worker_sdk::{
   McaiChannel, MessageError,
 };
 use std::io::Error;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub enum StreamData {
@@ -28,6 +29,7 @@ pub fn process(
   let source_secret = parameters.source_secret.unwrap_or_default();
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
+  let runtime = tokio::runtime::Runtime::new().unwrap();
 
   let (sender, receiver) = sync::channel(1000);
   let reception_task = thread::spawn(move || {
@@ -84,12 +86,14 @@ pub fn process(
           region,
           bucket,
         } => {
+          let runtime = Arc::new(Mutex::new(runtime));
           let writer = S3Writer {
             hostname,
             access_key_id,
             secret_access_key,
             region,
             bucket,
+            runtime,
           };
           writer
             .write_stream(
