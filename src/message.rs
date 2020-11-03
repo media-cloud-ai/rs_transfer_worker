@@ -28,8 +28,10 @@ pub fn process(
   let cloned_job_result = job_result.clone();
 
   let source_secret = parameters.source_secret.unwrap_or_default();
+  let source_path = parameters.source_path;
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
+
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let runtime = Arc::new(Mutex::new(runtime));
   let s3_writer_runtime = runtime.clone();
@@ -49,7 +51,21 @@ pub fn process(
     })
   });
 
-  start_reader(&parameters.source_path, source_secret, sender).map_err(|e| {
+  let sending_task = thread::spawn(move || {
+    task::block_on(async {
+      start_reader(&source_path, source_secret, sender, runtime.clone()).await
+    })
+  });
+
+  let sending_result = sending_task.join().map_err(|_e| {
+    let result = job_result
+      .clone()
+      .with_status(JobStatus::Error)
+      .with_message("error during source data sending");
+    MessageError::ProcessingError(result)
+  })?;
+
+  sending_result.map_err(|e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)
@@ -156,10 +172,11 @@ async fn start_writer(
   }
 }
 
-fn start_reader(
+async fn start_reader(
   source_path: &str,
   source_secret: Secret,
   sender: sync::Sender<StreamData>,
+  runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
   match source_secret {
     Secret::Ftp {
@@ -178,7 +195,7 @@ fn start_reader(
         password,
         prefix,
       };
-      task::block_on(async { reader.read_stream(source_path, sender).await })
+      reader.read_stream(source_path, sender).await
     }
     Secret::Http {
       endpoint,
@@ -192,11 +209,11 @@ fn start_reader(
         headers,
         body,
       };
-      task::block_on(async { reader.read_stream(source_path, sender).await })
+      reader.read_stream(source_path, sender).await
     }
     Secret::Local {} => {
       let reader = FileReader {};
-      task::block_on(async { reader.read_stream(source_path, sender).await })
+      reader.read_stream(source_path, sender).await
     }
     Secret::S3 {
       hostname,
@@ -211,8 +228,9 @@ fn start_reader(
         secret_access_key,
         region,
         bucket,
+        runtime,
       };
-      task::block_on(async { reader.read_stream(source_path, sender).await })
+      reader.read_stream(source_path, sender).await
     }
   }
 }
