@@ -10,6 +10,7 @@ use mcai_worker_sdk::{
 use std::io::Error;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use tokio::runtime::Runtime;
 
 pub enum StreamData {
   Data(Vec<u8>),
@@ -30,81 +31,21 @@ pub fn process(
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
   let runtime = tokio::runtime::Runtime::new().unwrap();
+  let runtime = Arc::new(Mutex::new(runtime));
+  let s3_writer_runtime = runtime.clone();
 
   let (sender, receiver) = sync::channel(1000);
   let reception_task = thread::spawn(move || {
     task::block_on(async {
-      match cloned_destination_secret {
-        Secret::Ftp {
-          hostname,
-          port,
-          secure,
-          username,
-          password,
-          prefix,
-        } => {
-          let writer = FtpWriter {
-            hostname,
-            port,
-            secure,
-            username,
-            password,
-            prefix,
-          };
-          writer
-            .write_stream(
-              &cloned_destination_path,
-              receiver,
-              channel,
-              cloned_job_result,
-            )
-            .await
-        }
-        Secret::Http {
-          endpoint: _,
-          method: _,
-          headers: _,
-          body: _,
-        } => {
-          unimplemented!();
-        }
-        Secret::Local {} => {
-          let writer = FileWriter {};
-          writer
-            .write_stream(
-              &cloned_destination_path,
-              receiver,
-              channel,
-              cloned_job_result,
-            )
-            .await
-        }
-        Secret::S3 {
-          hostname,
-          access_key_id,
-          secret_access_key,
-          region,
-          bucket,
-        } => {
-          let runtime = Arc::new(Mutex::new(runtime));
-          let writer = S3Writer {
-            hostname,
-            access_key_id,
-            secret_access_key,
-            region,
-            bucket,
-            runtime,
-          };
-          writer
-            .write_stream(
-              &cloned_destination_path,
-              receiver,
-              channel,
-              cloned_job_result,
-            )
-            .await
-        }
-      }
+      start_writer(
+        &cloned_destination_path,
+        cloned_destination_secret,
+        cloned_job_result,
+        channel,
+        receiver,
+        s3_writer_runtime,
+      )
+      .await
     })
   });
 
@@ -133,6 +74,86 @@ pub fn process(
   })?;
 
   Ok(job_result.with_status(JobStatus::Completed))
+}
+
+async fn start_writer(
+  cloned_destination_path: &str,
+  cloned_destination_secret: Secret,
+  cloned_job_result: JobResult,
+  channel: Option<McaiChannel>,
+  receiver: sync::Receiver<StreamData>,
+  runtime: Arc<Mutex<Runtime>>,
+) -> Result<(), Error> {
+  match cloned_destination_secret {
+    Secret::Ftp {
+      hostname,
+      port,
+      secure,
+      username,
+      password,
+      prefix,
+    } => {
+      let writer = FtpWriter {
+        hostname,
+        port,
+        secure,
+        username,
+        password,
+        prefix,
+      };
+      writer
+        .write_stream(
+          &cloned_destination_path,
+          receiver,
+          channel,
+          cloned_job_result,
+        )
+        .await
+    }
+    Secret::Http {
+      endpoint: _,
+      method: _,
+      headers: _,
+      body: _,
+    } => {
+      unimplemented!();
+    }
+    Secret::Local {} => {
+      let writer = FileWriter {};
+      writer
+        .write_stream(
+          &cloned_destination_path,
+          receiver,
+          channel,
+          cloned_job_result,
+        )
+        .await
+    }
+    Secret::S3 {
+      hostname,
+      access_key_id,
+      secret_access_key,
+      region,
+      bucket,
+    } => {
+      let writer = S3Writer {
+        hostname,
+        access_key_id,
+        secret_access_key,
+        region,
+        bucket,
+        runtime,
+      };
+      writer
+        .write_stream(
+          &cloned_destination_path,
+          receiver,
+          channel,
+          cloned_job_result,
+        )
+        .await
+    }
+  }
 }
 
 fn start_reader(
