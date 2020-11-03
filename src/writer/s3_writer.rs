@@ -274,12 +274,15 @@ pub fn test_s3_writer_getters() {
   let region = Some("s3-region".to_string());
   let bucket = "s3-bucket".to_string();
 
+  let runtime = Arc::new(Mutex::new(Runtime::new().unwrap()));
+
   let s3_writer = S3Writer {
     hostname: hostname.clone(),
     access_key_id: access_key_id.clone(),
     secret_access_key: secret_access_key.clone(),
     region: region.clone(),
     bucket: bucket.clone(),
+    runtime,
   };
 
   assert_eq!(s3_writer.get_hostname(), hostname);

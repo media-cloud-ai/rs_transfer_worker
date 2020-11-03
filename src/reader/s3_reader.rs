@@ -128,12 +128,15 @@ pub fn test_s3_reader_getters() {
   let region = Some("s3-region".to_string());
   let bucket = "s3-bucket".to_string();
 
+  let runtime = Arc::new(Mutex::new(Runtime::new().unwrap()));
+
   let s3_reader = S3Reader {
     hostname: hostname.clone(),
     access_key_id: access_key_id.clone(),
     secret_access_key: secret_access_key.clone(),
     region: region.clone(),
     bucket: bucket.clone(),
+    runtime,
   };
 
   assert_eq!(s3_reader.get_hostname(), hostname);
