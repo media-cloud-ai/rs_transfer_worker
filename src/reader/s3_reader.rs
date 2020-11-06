@@ -4,6 +4,8 @@ use async_std::sync::Sender;
 use async_trait::async_trait;
 use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3Client, S3};
 use std::io::{Error, ErrorKind, Read};
+use std::sync::{Arc, Mutex};
+use tokio::runtime::Runtime;
 
 pub struct S3Reader {
   pub hostname: Option<String>,
@@ -11,6 +13,7 @@ pub struct S3Reader {
   pub secret_access_key: String,
   pub region: Option<String>,
   pub bucket: String,
+  pub runtime: Arc<Mutex<Runtime>>,
 }
 
 impl S3Endpoint for S3Reader {
@@ -30,6 +33,7 @@ impl S3Endpoint for S3Reader {
 
 impl S3Reader {
   async fn read_file(
+    &self,
     client: S3Client,
     path: &str,
     bucket: &str,
@@ -47,17 +51,26 @@ impl S3Reader {
       ..Default::default()
     };
 
-    let head = client
-      .head_object(head_request)
-      .await
-      .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
+    let cloned_client = client.clone();
+    let handler = self.runtime.clone().lock().unwrap().spawn(async move {
+      cloned_client
+        .head_object(head_request)
+        .await
+        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+    });
+    let head = handler.await??;
 
     if let Some(file_size) = head.content_length {
       sender.send(StreamData::Size(file_size as u64)).await;
     }
-    let object = client.get_object(request).await;
+    let handler = self.runtime.clone().lock().unwrap().spawn(async move {
+      client
+        .get_object(request)
+        .await
+        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+    });
 
-    let object = object.map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
+    let object = handler.await??;
 
     let s3_byte_stream = object
       .body
@@ -94,19 +107,16 @@ impl S3Reader {
 #[async_trait]
 impl StreamReader for S3Reader {
   async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-
     let cloned_bucket = self.bucket.clone();
     let cloned_path = path.to_string();
     let client = self
       .get_s3_client()
       .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
 
-    let ret = runtime.spawn(async move {
-      S3Reader::read_file(client, &cloned_path, &cloned_bucket, sender).await
-    });
-
-    ret.await.map_err(|e| Error::new(ErrorKind::Other, e))?
+    self
+      .read_file(client, &cloned_path, &cloned_bucket, sender)
+      .await
+      .map_err(|e| Error::new(ErrorKind::Other, e))
   }
 }
 
@@ -118,12 +128,15 @@ pub fn test_s3_reader_getters() {
   let region = Some("s3-region".to_string());
   let bucket = "s3-bucket".to_string();
 
+  let runtime = Arc::new(Mutex::new(Runtime::new().unwrap()));
+
   let s3_reader = S3Reader {
     hostname: hostname.clone(),
     access_key_id: access_key_id.clone(),
     secret_access_key: secret_access_key.clone(),
     region: region.clone(),
     bucket: bucket.clone(),
+    runtime,
   };
 
   assert_eq!(s3_reader.get_hostname(), hostname);

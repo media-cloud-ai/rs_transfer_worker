@@ -16,6 +16,8 @@ use std::{
 use threadpool::ThreadPool;
 
 use crate::endpoint::s3::S3Endpoint;
+use std::sync::{Arc, Mutex};
+use tokio::runtime::Runtime;
 
 #[derive(Clone, Debug)]
 pub struct S3Writer {
@@ -24,6 +26,7 @@ pub struct S3Writer {
   pub secret_access_key: String,
   pub region: Option<String>,
   pub bucket: String,
+  pub runtime: Arc<Mutex<Runtime>>,
 }
 
 impl S3Endpoint for S3Writer {
@@ -49,11 +52,18 @@ impl S3Writer {
       ..Default::default()
     };
 
-    let object = self
-      .get_s3_client()?
-      .create_multipart_upload(request)
+    let client = self.get_s3_client()?;
+
+    let handler = self.runtime.clone().lock().unwrap().spawn(async move {
+      client
+        .create_multipart_upload(request)
+        .await
+        .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))
+    });
+
+    let object = handler
       .await
-      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
+      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))??;
 
     object
       .upload_id
@@ -76,11 +86,18 @@ impl S3Writer {
       ..Default::default()
     };
 
-    let object = self
-      .get_s3_client()?
-      .upload_part(request)
+    let client = self.get_s3_client()?;
+
+    let handler = self.runtime.clone().lock().unwrap().spawn(async move {
+      client
+        .upload_part(request)
+        .await
+        .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))
+    });
+
+    let object = handler
       .await
-      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
+      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))??;
 
     Ok(CompletedPart {
       e_tag: object.e_tag,
@@ -102,11 +119,18 @@ impl S3Writer {
       ..Default::default()
     };
 
-    self
-      .get_s3_client()?
-      .complete_multipart_upload(request)
+    let client = self.get_s3_client()?;
+
+    let handler = self.runtime.clone().lock().unwrap().spawn(async move {
+      client
+        .complete_multipart_upload(request)
+        .await
+        .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))
+    });
+
+    handler
       .await
-      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))?;
+      .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e))??;
 
     Ok(())
   }
@@ -122,6 +146,7 @@ impl StreamWriter for S3Writer {
     job_result: JobResult,
   ) -> Result<(), Error> {
     let upload_identifier = self.start_multi_part_s3_upload(path).await?;
+
     let mut part_number = 1;
 
     // limited to 10000 parts
@@ -160,21 +185,19 @@ impl StreamWriter for S3Writer {
           let cloned_part_buffer = part_buffer.clone();
           let cloned_path = path.to_string();
 
-          pool.execute(move || {
-            task::block_on(async {
-              let part_id = cloned_writer
-                .upload_s3_part(
-                  &cloned_path,
-                  &cloned_upload_identifier,
-                  part_number,
-                  cloned_part_buffer,
-                )
-                .await
-                .expect("unable to upload s3 part");
-              cloned_tx
-                .send(part_id)
-                .expect("channel will be there waiting for the pool");
-            })
+          task::block_on(async {
+            let part_id = cloned_writer
+              .upload_s3_part(
+                &cloned_path,
+                &cloned_upload_identifier,
+                part_number,
+                cloned_part_buffer,
+              )
+              .await
+              .expect("unable to upload s3 part");
+            cloned_tx
+              .send(part_id)
+              .expect("channel will be there waiting for the pool");
           });
 
           let mut complete_parts = rx.iter().take(n_jobs).collect::<Vec<CompletedPart>>();
@@ -183,6 +206,7 @@ impl StreamWriter for S3Writer {
           self
             .complete_s3_upload(path, &upload_identifier, complete_parts)
             .await?;
+
           info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
           return Ok(());
         }
@@ -214,23 +238,22 @@ impl StreamWriter for S3Writer {
               thread::sleep(Duration::from_millis(500));
             }
 
-            pool.execute(move || {
-              task::block_on(async {
-                let part_id = cloned_writer
-                  .upload_s3_part(
-                    &cloned_path,
-                    &upload_identifier,
-                    part_number,
-                    cloned_part_buffer,
-                  )
-                  .await
-                  .expect("unable to upload s3 part");
+            task::block_on(async {
+              let part_id = cloned_writer
+                .upload_s3_part(
+                  &cloned_path,
+                  &upload_identifier,
+                  part_number,
+                  cloned_part_buffer,
+                )
+                .await
+                .expect("unable to upload s3 part");
 
-                cloned_tx
-                  .send(part_id)
-                  .expect("channel will be there waiting for the pool");
-              })
+              cloned_tx
+                .send(part_id)
+                .expect("channel will be there waiting for the pool");
             });
+
             n_jobs += 1;
 
             part_number += 1;
@@ -251,12 +274,15 @@ pub fn test_s3_writer_getters() {
   let region = Some("s3-region".to_string());
   let bucket = "s3-bucket".to_string();
 
+  let runtime = Arc::new(Mutex::new(Runtime::new().unwrap()));
+
   let s3_writer = S3Writer {
     hostname: hostname.clone(),
     access_key_id: access_key_id.clone(),
     secret_access_key: secret_access_key.clone(),
     region: region.clone(),
     bucket: bucket.clone(),
+    runtime,
   };
 
   assert_eq!(s3_writer.get_hostname(), hostname);
