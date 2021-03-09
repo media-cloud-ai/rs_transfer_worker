@@ -3,9 +3,8 @@ use crate::message::StreamData;
 use crate::reader::StreamReader;
 use async_std::sync::Sender;
 use async_trait::async_trait;
-use std::io::{Error, ErrorKind, Read};
-
 use mcai_worker_sdk::{debug, info};
+use std::io::{Error, ErrorKind, Read};
 
 pub struct SftpReader {
   pub hostname: String,
