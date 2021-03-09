@@ -17,9 +17,7 @@ path = "src/bin/main.rs"
 [dependencies]
 async-std = { version = "1.5.0", features = ["unstable"]}
 async-trait = "0.1.31"
-base64 = "0.13"
 bytes = "0.5.4"
-dirs = "3.0.1"
 ftp = { version = "3.0.1", features = ["secure"], path = "rust-ftp" }
 futures = "0.3"
 futures-util = "0.3"
@@ -32,7 +30,7 @@ schemars = "0.8.0"
 serde = "^1.0"
 serde_json = "^1.0"
 serde_derive = "^1.0"
-ssh2 = "0.8"
+ssh-transfer = { git = "https://github.com/media-io/ssh_transfer.git", branch = "main" }
 threadpool = "1.8"
 tokio = "0.2"
 tokio-io = "0.1"

@@ -29,6 +29,14 @@ pub enum Secret {
     region: Option<String>,
     bucket: String,
   },
+  #[serde(rename = "sftp")]
+  Sftp {
+    hostname: String,
+    port: Option<u16>,
+    username: String,
+    password: Option<String>,
+    prefix: Option<String>,
+  },
 }
 
 impl Default for Secret {
