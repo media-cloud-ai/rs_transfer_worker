@@ -41,6 +41,17 @@ fn s3_upload_benchmark(c: &mut Criterion) {
   c.bench_with_input(BenchmarkId::new("S3", "Upload"), &message, bench_job);
 }
 
+fn sftp_upload_benchmark(c: &mut Criterion) {
+  let message = std::fs::read_to_string("./examples/sftp_upload.json").unwrap();
+  c.bench_with_input(BenchmarkId::new("SFTP", "Upload"), &message, bench_job);
+}
+
+fn sftp_download_benchmark(c: &mut Criterion) {
+  let message = std::fs::read_to_string("./examples/sftp_download.json").unwrap();
+  c.bench_with_input(BenchmarkId::new("SFTP", "Download"), &message, bench_job);
+}
+
+
 criterion_group! {
   name = benches;
   config =
@@ -54,7 +65,9 @@ criterion_group! {
     http_download_benchmark,
     local_copy_benchmark,
     s3_upload_benchmark,
-    s3_download_benchmark
+    s3_download_benchmark,
+    sftp_upload_benchmark,
+    sftp_download_benchmark
 }
 
 criterion_main!(benches);

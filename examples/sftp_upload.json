@@ -1,0 +1,27 @@
+{
+  "job_id": 1234,
+  "parameters": [
+    {
+      "id": "source_path",
+      "type" : "string",
+      "value" : "README.md"
+    },
+    {
+      "id": "destination_path",
+      "type" : "string",
+      "value" : "SFTP_UPLOADED_FILE.md"
+    },
+    {
+      "id": "destination_secret",
+      "type" : "string",
+      "value" : {
+        "type": "sftp",
+        "hostname": "localhost",
+        "port": 22222,
+        "username": "sftp_user",
+        "password": "sftp_password",
+        "prefix": "/data"
+      }
+    }
+  ]
+}
