@@ -4,6 +4,7 @@
 
 - [x] Local file
 - [x] Download FTP file
+- [x] Download SFTP file
 - [x] Download HTTP file
 - [x] Download S3 file
 
@@ -11,6 +12,7 @@
 
 - [x] Write local file
 - [x] Upload FTP file
+- [x] Upload SFTP file
 - [x] Upload S3 file
 
 
