@@ -61,16 +61,24 @@ impl StreamReader for SftpReader {
 
     sender.send(StreamData::Size(file_size)).await;
 
-    let mut buffer = vec![];
+    info!("Start reading remote file {}...", absolute_path);
+    let mut total_read_bytes = 0;
 
-    info!("Read remote file: {}", absolute_path);
-    let read_bytes = sftp_reader.read_to_end(&mut buffer)?;
+    loop {
+      let mut buffer = vec![0; 30 * 1024];
+      let read_size = sftp_reader.read(&mut buffer)?;
 
-    debug!("Read {} bytes on {} expected.", read_bytes, file_size);
+      if read_size == 0 {
+        sender.send(StreamData::Eof).await;
+        debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
+        return Ok(());
+      }
 
-    sender.send(StreamData::Data(buffer)).await;
-    sender.send(StreamData::Eof).await;
+      total_read_bytes += read_size;
 
-    Ok(())
+      sender
+        .send(StreamData::Data(buffer[0..read_size].to_vec()))
+        .await;
+    }
   }
 }

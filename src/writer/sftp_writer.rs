@@ -44,11 +44,14 @@ impl StreamWriter for SftpWriter {
     channel: Option<McaiChannel>,
     job_result: JobResult,
   ) -> Result<(), Error> {
+    let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
+    let absolute_path: String = vec![prefix, path.to_string()].join("/");
+
     let connection = self.get_sftp_stream()?;
     connection.start().map_err(Into::<Error>::into)?;
 
     let mut sftp_writer = connection
-      .write_over_sftp(path)
+      .write_over_sftp(&absolute_path)
       .map_err(Into::<Error>::into)?;
 
     let mut file_size = None;
