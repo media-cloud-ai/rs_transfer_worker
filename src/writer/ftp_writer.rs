@@ -187,11 +187,11 @@ pub fn test_ftp_writer_getters() {
 
   let ftp_writer = FtpWriter {
     hostname: hostname.clone(),
-    port: port.clone(),
-    secure: secure.clone(),
+    port,
+    secure,
     username: username.clone(),
     password: password.clone(),
-    prefix: prefix.clone(),
+    prefix,
   };
 
   assert_eq!(ftp_writer.get_hostname(), hostname);

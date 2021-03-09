@@ -167,7 +167,7 @@ pub fn test_get_header_value() {
   assert_eq!(string, header_value);
 
   let boolean = true;
-  let header_value = get_header_value(&Value::Bool(boolean.clone())).unwrap();
+  let header_value = get_header_value(&Value::Bool(boolean)).unwrap();
   assert_eq!(boolean.to_string(), header_value);
 
   let unsigned_int: u32 = 123;
@@ -183,7 +183,7 @@ pub fn test_get_header_value() {
   assert_eq!(float.to_string(), header_value);
 
   let invalid_string = "\0\0".to_string();
-  let error = get_header_value(&Value::String(invalid_string.clone())).unwrap_err();
+  let error = get_header_value(&Value::String(invalid_string)).unwrap_err();
   let expected = Error::new(
     ErrorKind::Other,
     "Cannot parse 'String(\"\\u{0}\\u{0}\")' HTTP header value: failed to parse header value"
