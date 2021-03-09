@@ -58,7 +58,12 @@ fn get_filename(path: &str) -> Result<String, Error> {
       .file_name()
       .ok_or_else(|| Error::new(ErrorKind::Other, "Cannot get destination filename."))?
       .to_str()
-      .ok_or_else(|| Error::new(ErrorKind::Other, "Cannot get destination filename as string."))?
+      .ok_or_else(|| {
+        Error::new(
+          ErrorKind::Other,
+          "Cannot get destination filename as string.",
+        )
+      })?
       .to_string(),
   )
 }

@@ -1,11 +1,9 @@
-use std::io::{Error, ErrorKind, Read};
-
-use async_std::sync::Sender;
-use async_trait::async_trait;
-
 use crate::endpoint::sftp::SftpEndpoint;
 use crate::message::StreamData;
 use crate::reader::StreamReader;
+use async_std::sync::Sender;
+use async_trait::async_trait;
+use std::io::{Error, ErrorKind, Read};
 
 use mcai_worker_sdk::{debug, info};
 
@@ -62,10 +60,22 @@ impl StreamReader for SftpReader {
     sender.send(StreamData::Size(file_size)).await;
 
     info!("Start reading remote file {}...", absolute_path);
+
+    let buffer_size = if let Ok(buffer_size) = std::env::var("SFTP_READER_BUFFER_SIZE") {
+      buffer_size.parse::<u32>().map_err(|_| {
+        Error::new(
+          ErrorKind::Other,
+          "Unable to parse SFTP_READER_BUFFER_SIZE variable",
+        )
+      })? as usize
+    } else {
+      1024 * 1024
+    };
+
     let mut total_read_bytes = 0;
 
     loop {
-      let mut buffer = vec![0; 30 * 1024];
+      let mut buffer = vec![0; buffer_size];
       let read_size = sftp_reader.read(&mut buffer)?;
 
       if read_size == 0 {
