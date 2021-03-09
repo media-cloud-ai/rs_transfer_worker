@@ -56,9 +56,9 @@ fn get_filename(path: &str) -> Result<String, Error> {
   Ok(
     destination_path
       .file_name()
-      .unwrap()
+      .ok_or_else(|| Error::new(ErrorKind::Other, "Cannot get destination filename."))?
       .to_str()
-      .unwrap()
+      .ok_or_else(|| Error::new(ErrorKind::Other, "Cannot get destination filename as string."))?
       .to_string(),
   )
 }
