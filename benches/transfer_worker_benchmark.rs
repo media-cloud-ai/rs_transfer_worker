@@ -51,7 +51,6 @@ fn sftp_download_benchmark(c: &mut Criterion) {
   c.bench_with_input(BenchmarkId::new("SFTP", "Download"), &message, bench_job);
 }
 
-
 criterion_group! {
   name = benches;
   config =
