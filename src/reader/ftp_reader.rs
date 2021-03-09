@@ -84,11 +84,11 @@ pub fn test_ftp_reader_getters() {
 
   let ftp_reader = FtpReader {
     hostname: hostname.clone(),
-    port: port.clone(),
-    secure: secure.clone(),
+    port,
+    secure,
     username: username.clone(),
     password: password.clone(),
-    prefix: prefix.clone(),
+    prefix,
   };
 
   assert_eq!(ftp_reader.get_hostname(), hostname);

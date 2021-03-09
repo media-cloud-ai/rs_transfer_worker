@@ -56,9 +56,14 @@ fn get_filename(path: &str) -> Result<String, Error> {
   Ok(
     destination_path
       .file_name()
-      .unwrap()
+      .ok_or_else(|| Error::new(ErrorKind::Other, "Cannot get destination filename."))?
       .to_str()
-      .unwrap()
+      .ok_or_else(|| {
+        Error::new(
+          ErrorKind::Other,
+          "Cannot get destination filename as string.",
+        )
+      })?
       .to_string(),
   )
 }
@@ -182,11 +187,11 @@ pub fn test_ftp_writer_getters() {
 
   let ftp_writer = FtpWriter {
     hostname: hostname.clone(),
-    port: port.clone(),
-    secure: secure.clone(),
+    port,
+    secure,
     username: username.clone(),
     password: password.clone(),
-    prefix: prefix.clone(),
+    prefix,
   };
 
   assert_eq!(ftp_writer.get_hostname(), hostname);

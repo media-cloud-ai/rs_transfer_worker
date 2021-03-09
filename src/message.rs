@@ -169,6 +169,29 @@ async fn start_writer(
         )
         .await
     }
+    Secret::Sftp {
+      hostname,
+      port,
+      username,
+      password,
+      prefix,
+    } => {
+      let writer = SftpWriter {
+        hostname,
+        port,
+        username,
+        password,
+        prefix,
+      };
+      writer
+        .write_stream(
+          &cloned_destination_path,
+          receiver,
+          channel,
+          cloned_job_result,
+        )
+        .await
+    }
   }
 }
 
@@ -229,6 +252,22 @@ async fn start_reader(
         region,
         bucket,
         runtime,
+      };
+      reader.read_stream(source_path, sender).await
+    }
+    Secret::Sftp {
+      hostname,
+      port,
+      username,
+      password,
+      prefix,
+    } => {
+      let reader = SftpReader {
+        hostname,
+        port,
+        username,
+        password,
+        prefix,
       };
       reader.read_stream(source_path, sender).await
     }

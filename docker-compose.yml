@@ -12,6 +12,18 @@ services:
       - ./tests/ftp/:/data
     restart: always
 
+  sftp:
+    image: atmoz/sftp
+    container_name: sftp_server
+    ports:
+      - "22222:22"
+    volumes:
+      - ./tests/sftp/data:/home/sftp_user/data
+      - ./tests/sftp/.ssh/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key
+      - ./tests/sftp/.ssh/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key
+    command: sftp_user:sftp_password:1000::data
+    restart: always
+
   http_nginx:
     image: nginx
     container_name: http_nginx

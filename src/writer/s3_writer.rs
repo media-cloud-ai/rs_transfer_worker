@@ -160,7 +160,7 @@ impl StreamWriter for S3Writer {
     let n_workers = std::env::var("S3_WRITER_WORKERS")
       .map(|buffer_size| buffer_size.parse::<usize>())
       .unwrap_or_else(|_| Ok(4))
-      .unwrap_or_else(|_| 4);
+      .unwrap_or(4);
 
     let mut n_jobs = 0;
     let pool = ThreadPool::new(n_workers);
@@ -281,7 +281,7 @@ pub fn test_s3_writer_getters() {
     access_key_id: access_key_id.clone(),
     secret_access_key: secret_access_key.clone(),
     region: region.clone(),
-    bucket: bucket.clone(),
+    bucket,
     runtime,
   };
 
