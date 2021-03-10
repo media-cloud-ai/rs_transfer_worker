@@ -1,7 +1,7 @@
 use crate::reader::*;
 use crate::writer::*;
 use crate::{Secret, TransferWorkerParameters};
-use async_std::{sync, task};
+use async_std::{channel, task};
 use mcai_worker_sdk::{
   info,
   job::{JobResult, JobStatus},
@@ -36,7 +36,7 @@ pub fn process(
   let runtime = Arc::new(Mutex::new(runtime));
   let s3_writer_runtime = runtime.clone();
 
-  let (sender, receiver) = sync::channel(1000);
+  let (sender, receiver) = channel::bounded(1000);
   let reception_task = thread::spawn(move || {
     task::block_on(async {
       start_writer(
@@ -97,7 +97,7 @@ async fn start_writer(
   cloned_destination_secret: Secret,
   cloned_job_result: JobResult,
   channel: Option<McaiChannel>,
-  receiver: sync::Receiver<StreamData>,
+  receiver: channel::Receiver<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
   match cloned_destination_secret {
@@ -198,7 +198,7 @@ async fn start_writer(
 async fn start_reader(
   source_path: &str,
   source_secret: Secret,
-  sender: sync::Sender<StreamData>,
+  sender: channel::Sender<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
   match source_secret {

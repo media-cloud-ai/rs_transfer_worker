@@ -1,10 +1,8 @@
 use crate::endpoint::sftp::SftpEndpoint;
 use crate::message::StreamData;
 use crate::writer::StreamWriter;
-
-use async_std::sync::Receiver;
+use async_std::channel::Receiver;
 use async_trait::async_trait;
-
 use mcai_worker_sdk::{debug, info, job::JobResult, publish_job_progression, McaiChannel};
 use std::io::{Error, ErrorKind, Write};
 

@@ -1,6 +1,6 @@
 use crate::endpoint::s3::S3Endpoint;
 use crate::{message::StreamData, reader::StreamReader};
-use async_std::sync::Sender;
+use async_std::channel::Sender;
 use async_trait::async_trait;
 use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3Client, S3};
 use std::io::{Error, ErrorKind, Read};
@@ -61,7 +61,7 @@ impl S3Reader {
     let head = handler.await??;
 
     if let Some(file_size) = head.content_length {
-      sender.send(StreamData::Size(file_size as u64)).await;
+      sender.send(StreamData::Size(file_size as u64)).await.unwrap();
     }
     let handler = self.runtime.clone().lock().unwrap().spawn(async move {
       client
@@ -97,9 +97,10 @@ impl S3Reader {
 
       sender
         .send(StreamData::Data(buffer[0..size].to_vec()))
-        .await;
+        .await
+        .unwrap();
     }
-    sender.send(StreamData::Eof).await;
+    sender.send(StreamData::Eof).await.unwrap();
     Ok(())
   }
 }

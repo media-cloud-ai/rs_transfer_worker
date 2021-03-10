@@ -4,7 +4,7 @@ mod s3_writer;
 mod sftp_writer;
 
 use crate::message::StreamData;
-use async_std::sync::Receiver;
+use async_std::channel::Receiver;
 use mcai_worker_sdk::McaiChannel;
 use std::io::Error;
 

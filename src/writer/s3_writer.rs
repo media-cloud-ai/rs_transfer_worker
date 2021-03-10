@@ -1,5 +1,5 @@
 use crate::{message::StreamData, writer::StreamWriter};
-use async_std::{sync::Receiver, task};
+use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
 use mcai_worker_sdk::job::JobResult;
 use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};

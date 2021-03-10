@@ -1,8 +1,7 @@
-use std::io::{Error, ErrorKind};
-
-use async_std::sync::Sender;
+use async_std::channel::Sender;
 use async_trait::async_trait;
 use reqwest::{Method, StatusCode};
+use std::io::{Error, ErrorKind};
 use tokio::runtime::Runtime;
 
 use crate::endpoint::http::{get_headers, get_method, get_url};
@@ -65,9 +64,10 @@ impl StreamReader for HttpReader {
         let bytes = response.bytes();
         sender
           .send(StreamData::Data(bytes.await.unwrap().to_vec()))
-          .await;
+          .await
+          .unwrap();
 
-        sender.send(StreamData::Eof).await;
+        sender.send(StreamData::Eof).await.unwrap();
         Ok(())
       })
   }

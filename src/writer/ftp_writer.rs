@@ -1,7 +1,7 @@
 use crate::endpoint::ftp::FtpEndpoint;
 use crate::message::StreamData;
 use crate::writer::StreamWriter;
-use async_std::sync::Receiver;
+use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
 use mcai_worker_sdk::job::JobResult;

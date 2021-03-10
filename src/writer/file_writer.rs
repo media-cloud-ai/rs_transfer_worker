@@ -1,8 +1,7 @@
 use crate::{message::StreamData, writer::StreamWriter};
-use async_std::sync::Receiver;
+use async_std::channel::Receiver;
 use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};
-use std::fs;
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Error, ErrorKind, Write};
 use std::path::Path;
 

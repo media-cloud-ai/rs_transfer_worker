@@ -11,7 +11,7 @@ pub use s3_reader::S3Reader;
 pub use sftp_reader::SftpReader;
 
 use crate::message::StreamData;
-use async_std::sync::Sender;
+use async_std::channel::Sender;
 use async_trait::async_trait;
 use std::io::Error;
 

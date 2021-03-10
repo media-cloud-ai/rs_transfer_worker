@@ -1,7 +1,7 @@
 use crate::endpoint::sftp::SftpEndpoint;
 use crate::message::StreamData;
 use crate::reader::StreamReader;
-use async_std::sync::Sender;
+use async_std::channel::Sender;
 use async_trait::async_trait;
 use mcai_worker_sdk::{debug, info};
 use std::io::{Error, ErrorKind, Read};
@@ -56,7 +56,7 @@ impl StreamReader for SftpReader {
 
     debug!("Size of {} remote file: {}", absolute_path, file_size);
 
-    sender.send(StreamData::Size(file_size)).await;
+    sender.send(StreamData::Size(file_size)).await.unwrap();
 
     info!("Start reading remote file {}...", absolute_path);
 
@@ -78,7 +78,7 @@ impl StreamReader for SftpReader {
       let read_size = sftp_reader.read(&mut buffer)?;
 
       if read_size == 0 {
-        sender.send(StreamData::Eof).await;
+        sender.send(StreamData::Eof).await.unwrap();
         debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
         return Ok(());
       }
@@ -87,7 +87,8 @@ impl StreamReader for SftpReader {
 
       sender
         .send(StreamData::Data(buffer[0..read_size].to_vec()))
-        .await;
+        .await
+        .unwrap();
     }
   }
 }
