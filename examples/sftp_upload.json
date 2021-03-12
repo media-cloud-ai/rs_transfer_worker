@@ -20,7 +20,8 @@
         "port": 22222,
         "username": "sftp_user",
         "password": "sftp_password",
-        "prefix": "/data"
+        "prefix": "/data",
+        "trust_host": true
       }
     }
   ]

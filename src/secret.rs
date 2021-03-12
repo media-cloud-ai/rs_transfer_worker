@@ -36,6 +36,8 @@ pub enum Secret {
     username: String,
     password: Option<String>,
     prefix: Option<String>,
+    trust_host: Option<bool>,
+    known_host: Option<String>,
   },
 }
 

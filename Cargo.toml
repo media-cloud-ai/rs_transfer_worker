@@ -30,7 +30,7 @@ schemars = "0.8.0"
 serde = "^1.0"
 serde_json = "^1.0"
 serde_derive = "^1.0"
-ssh-transfer = "0.1.1"
+ssh-transfer = { git = "https://github.com/media-io/ssh_transfer.git" , branch = "improvement/known_hosts_handling" }
 threadpool = "1.8"
 tokio = "0.2"
 tokio-io = "0.1"

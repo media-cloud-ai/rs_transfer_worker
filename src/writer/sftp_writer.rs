@@ -4,6 +4,8 @@ use crate::writer::StreamWriter;
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use mcai_worker_sdk::{debug, info, job::JobResult, publish_job_progression, McaiChannel};
+use ssh_transfer::KnownHost;
+use std::convert::TryFrom;
 use std::io::{Error, ErrorKind, Write};
 
 #[derive(Clone, Debug)]
@@ -13,6 +15,8 @@ pub struct SftpWriter {
   pub username: String,
   pub password: Option<String>,
   pub prefix: Option<String>,
+  pub trust_host: Option<bool>,
+  pub known_host: Option<String>,
 }
 
 impl SftpEndpoint for SftpWriter {
@@ -31,6 +35,10 @@ impl SftpEndpoint for SftpWriter {
   fn get_password(&self) -> Option<String> {
     self.password.clone()
   }
+
+  fn trust_host(&self) -> bool {
+    self.trust_host.unwrap_or(false)
+  }
 }
 
 #[async_trait]
@@ -45,7 +53,15 @@ impl StreamWriter for SftpWriter {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
 
-    let connection = self.get_sftp_stream()?;
+    let mut connection = self.get_sftp_stream()?;
+
+    if let Some(known_host) = &self.known_host {
+      let known_host = KnownHost::try_from(known_host.as_str()).map_err(Into::<Error>::into)?;
+      connection
+        .add_known_host(&known_host)
+        .map_err(Into::<Error>::into)?;
+    }
+
     connection.start().map_err(Into::<Error>::into)?;
 
     let mut sftp_writer = connection
