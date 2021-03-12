@@ -58,7 +58,10 @@ impl StreamReader for FtpReader {
       .size(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?
     {
-      sender.send(StreamData::Size(file_size as u64)).await.unwrap();
+      sender
+        .send(StreamData::Size(file_size as u64))
+        .await
+        .unwrap();
     };
 
     let mut buffer = vec![];

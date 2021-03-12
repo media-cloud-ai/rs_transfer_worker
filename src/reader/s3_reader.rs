@@ -61,7 +61,10 @@ impl S3Reader {
     let head = handler.await??;
 
     if let Some(file_size) = head.content_length {
-      sender.send(StreamData::Size(file_size as u64)).await.unwrap();
+      sender
+        .send(StreamData::Size(file_size as u64))
+        .await
+        .unwrap();
     }
     let handler = self.runtime.clone().lock().unwrap().spawn(async move {
       client
