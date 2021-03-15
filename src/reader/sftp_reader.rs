@@ -4,6 +4,8 @@ use crate::reader::StreamReader;
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use mcai_worker_sdk::{debug, info};
+use ssh_transfer::KnownHost;
+use std::convert::TryFrom;
 use std::io::{Error, ErrorKind, Read};
 
 pub struct SftpReader {
@@ -12,6 +14,7 @@ pub struct SftpReader {
   pub username: String,
   pub password: Option<String>,
   pub prefix: Option<String>,
+  pub known_host: Option<String>,
 }
 
 impl SftpReader {
@@ -44,7 +47,15 @@ impl StreamReader for SftpReader {
     let prefix = self.get_prefix().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
 
-    let connection = self.get_sftp_stream()?;
+    let mut connection = self.get_sftp_stream()?;
+
+    if let Some(known_host) = &self.known_host {
+      let known_host = KnownHost::try_from(known_host.as_str()).map_err(Into::<Error>::into)?;
+      connection
+        .add_known_host(&known_host)
+        .map_err(Into::<Error>::into)?;
+    }
+
     connection.start().map_err(Into::<Error>::into)?;
 
     let mut sftp_reader = connection

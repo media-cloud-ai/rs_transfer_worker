@@ -175,6 +175,7 @@ async fn start_writer(
       username,
       password,
       prefix,
+      known_host,
     } => {
       let writer = SftpWriter {
         hostname,
@@ -182,6 +183,7 @@ async fn start_writer(
         username,
         password,
         prefix,
+        known_host,
       };
       writer
         .write_stream(
@@ -261,6 +263,7 @@ async fn start_reader(
       username,
       password,
       prefix,
+      known_host,
     } => {
       let reader = SftpReader {
         hostname,
@@ -268,6 +271,7 @@ async fn start_reader(
         username,
         password,
         prefix,
+        known_host,
       };
       reader.read_stream(source_path, sender).await
     }
