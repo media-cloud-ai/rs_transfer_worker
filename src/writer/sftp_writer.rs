@@ -15,7 +15,6 @@ pub struct SftpWriter {
   pub username: String,
   pub password: Option<String>,
   pub prefix: Option<String>,
-  pub trust_host: Option<bool>,
   pub known_host: Option<String>,
 }
 
@@ -34,10 +33,6 @@ impl SftpEndpoint for SftpWriter {
 
   fn get_password(&self) -> Option<String> {
     self.password.clone()
-  }
-
-  fn trust_host(&self) -> bool {
-    self.trust_host.unwrap_or(false)
   }
 }
 

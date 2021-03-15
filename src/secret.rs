@@ -36,7 +36,6 @@ pub enum Secret {
     username: String,
     password: Option<String>,
     prefix: Option<String>,
-    trust_host: Option<bool>,
     known_host: Option<String>,
   },
 }
@@ -116,6 +115,26 @@ pub fn test_secret_s3() {
     secret_access_key: "456_SECRET_KEY".to_string(),
     region: None,
     bucket: "johnny".to_string(),
+  };
+  let secret: Secret = serde_json::from_str(json_str).unwrap();
+  assert_eq!(secret, expected);
+}
+
+#[test]
+pub fn test_secret_sftp() {
+  let json_str = r#"{
+    "type": "sftp",
+    "hostname": "127.0.0.1",
+    "username": "Johnny",
+    "password": "B_g00d"
+  }"#;
+  let expected = Secret::Sftp {
+    hostname: "127.0.0.1".to_string(),
+    port: None,
+    username: "Johnny".to_string(),
+    password: Some("B_g00d".to_string()),
+    prefix: None,
+    known_host: None,
   };
   let secret: Secret = serde_json::from_str(json_str).unwrap();
   assert_eq!(secret, expected);
