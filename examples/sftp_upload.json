@@ -20,7 +20,8 @@
         "port": 22222,
         "username": "sftp_user",
         "password": "sftp_password",
-        "prefix": "/data"
+        "prefix": "/data",
+        "known_host": "localhost ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOu7sCDuToBygbjzSJDlaV+G/a24bS7MGdqNtTkUM2xI"
       }
     }
   ]
