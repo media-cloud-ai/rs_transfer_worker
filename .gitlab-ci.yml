@@ -1,0 +1,13 @@
+
+default:
+  image: registry.gitlab.com/media-cloud-ai/ci/rust:1.52.1-fix-tarpaulin-media
+
+stages:
+  - test
+  - publish
+
+include:
+  - project: 'media-cloud-ai/ci/pipelines'
+    file: '/rust/rust-publish-docker.yml'
+  - project: 'media-cloud-ai/ci/pipelines'
+    file: '/rust/rust-base.yml'
