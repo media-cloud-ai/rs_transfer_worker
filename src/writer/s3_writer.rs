@@ -1,8 +1,7 @@
 use crate::{message::StreamData, writer::StreamWriter};
 use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
-use mcai_worker_sdk::job::JobResult;
-use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::prelude::{info, JobResult, publish_job_progression, McaiChannel};
 use rusoto_s3::{
   CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
   CreateMultipartUploadRequest, UploadPartRequest, S3,

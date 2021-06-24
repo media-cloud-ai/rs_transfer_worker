@@ -2,9 +2,9 @@ use crate::reader::*;
 use crate::writer::*;
 use crate::{Secret, TransferWorkerParameters};
 use async_std::{channel, task};
-use mcai_worker_sdk::{
+use mcai_worker_sdk::prelude::{
   info,
-  job::{JobResult, JobStatus},
+  JobResult, JobStatus,
   McaiChannel, MessageError,
 };
 use std::io::Error;

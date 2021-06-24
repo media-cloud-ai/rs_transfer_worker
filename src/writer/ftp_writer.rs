@@ -4,8 +4,7 @@ use crate::writer::StreamWriter;
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
-use mcai_worker_sdk::job::JobResult;
-use mcai_worker_sdk::{debug, info, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::prelude::{debug, info, JobResult, publish_job_progression, McaiChannel};
 use std::io::{Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
