@@ -24,11 +24,11 @@ impl FtpEndpoint for FtpWriter {
   }
 
   fn get_port(&self) -> u16 {
-    self.port.clone().unwrap_or(21)
+    self.port.unwrap_or(21)
   }
 
   fn is_secure(&self) -> bool {
-    self.secure.clone().unwrap_or(false)
+    self.secure.unwrap_or(false)
   }
 
   fn get_username(&self) -> Option<String> {
