@@ -3,7 +3,7 @@ use crate::message::StreamData;
 use crate::writer::StreamWriter;
 use async_std::channel::Receiver;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{debug, info, JobResult, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::prelude::{debug, info, publish_job_progression, JobResult, McaiChannel};
 use ssh_transfer::KnownHost;
 use std::convert::TryFrom;
 use std::io::{Error, ErrorKind, Write};

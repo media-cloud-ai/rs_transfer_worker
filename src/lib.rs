@@ -8,9 +8,7 @@ pub mod secret;
 mod writer;
 
 use crate::secret::Secret;
-use mcai_worker_sdk::prelude::{
-  Result, JobResult, JsonSchema, McaiChannel, MessageEvent, Version,
-};
+use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, MessageEvent, Result, Version};
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));
