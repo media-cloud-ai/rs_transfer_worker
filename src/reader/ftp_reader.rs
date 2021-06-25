@@ -97,7 +97,7 @@ impl StreamReader for FtpReader {
           let mut buffer = vec![0; buffer_size];
           let read_size = reader
             .read(&mut buffer)
-            .map_err(|e| FtpError::ConnectionError(e))?;
+            .map_err(FtpError::ConnectionError)?;
 
           if read_size == 0 {
             async_std::task::block_on(async {
