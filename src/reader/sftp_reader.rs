@@ -4,6 +4,7 @@ use crate::reader::StreamReader;
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use mcai_worker_sdk::prelude::{debug, info};
+use mcai_worker_sdk::McaiChannel;
 use ssh_transfer::KnownHost;
 use std::convert::TryFrom;
 use std::io::{Error, ErrorKind, Read};
@@ -43,7 +44,12 @@ impl SftpEndpoint for SftpReader {
 
 #[async_trait]
 impl StreamReader for SftpReader {
-  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
+  async fn read_stream(
+    &self,
+    path: &str,
+    sender: Sender<StreamData>,
+    channel: Option<McaiChannel>,
+  ) -> Result<(), Error> {
     let prefix = self.get_prefix().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
 
@@ -85,6 +91,12 @@ impl StreamReader for SftpReader {
     let mut total_read_bytes = 0;
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let mut buffer = vec![0; buffer_size];
       let read_size = sftp_reader.read(&mut buffer)?;
 

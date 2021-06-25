@@ -22,6 +22,7 @@ pub fn process(
   let cloned_destination_secret = parameters.destination_secret.unwrap_or_default();
   let cloned_destination_path = parameters.destination_path.clone();
   let cloned_job_result = job_result.clone();
+  let cloned_reader_channel = channel.clone();
   let cloned_writer_channel = channel.clone();
 
   let source_secret = parameters.source_secret.unwrap_or_default();
@@ -50,7 +51,14 @@ pub fn process(
 
   let sending_task = thread::spawn(move || {
     task::block_on(async {
-      start_reader(&source_path, source_secret, sender, runtime.clone()).await
+      start_reader(
+        &source_path,
+        source_secret,
+        sender,
+        runtime.clone(),
+        cloned_reader_channel,
+      )
+      .await
     })
   });
 
@@ -205,6 +213,7 @@ async fn start_reader(
   source_secret: Secret,
   sender: channel::Sender<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
+  channel: Option<McaiChannel>,
 ) -> Result<(), Error> {
   match source_secret {
     Secret::Ftp {
@@ -223,7 +232,7 @@ async fn start_reader(
         password,
         prefix,
       };
-      reader.read_stream(source_path, sender).await
+      reader.read_stream(source_path, sender, channel).await
     }
     Secret::Http {
       endpoint,
@@ -237,11 +246,11 @@ async fn start_reader(
         headers,
         body,
       };
-      reader.read_stream(source_path, sender).await
+      reader.read_stream(source_path, sender, channel).await
     }
     Secret::Local {} => {
       let reader = FileReader {};
-      reader.read_stream(source_path, sender).await
+      reader.read_stream(source_path, sender, channel).await
     }
     Secret::S3 {
       hostname,
@@ -258,7 +267,7 @@ async fn start_reader(
         bucket,
         runtime,
       };
-      reader.read_stream(source_path, sender).await
+      reader.read_stream(source_path, sender, channel).await
     }
     Secret::Sftp {
       hostname,
@@ -276,7 +285,7 @@ async fn start_reader(
         prefix,
         known_host,
       };
-      reader.read_stream(source_path, sender).await
+      reader.read_stream(source_path, sender, channel).await
     }
   }
 }

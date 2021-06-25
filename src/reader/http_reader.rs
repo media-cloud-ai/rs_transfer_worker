@@ -6,6 +6,7 @@ use tokio::runtime::Runtime;
 
 use crate::endpoint::http::{get_headers, get_method, get_url};
 use crate::{message::StreamData, reader::StreamReader};
+use mcai_worker_sdk::McaiChannel;
 
 pub struct HttpReader {
   pub endpoint: Option<String>,
@@ -16,7 +17,12 @@ pub struct HttpReader {
 
 #[async_trait]
 impl StreamReader for HttpReader {
-  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
+  async fn read_stream(
+    &self,
+    path: &str,
+    sender: Sender<StreamData>,
+    _channel: Option<McaiChannel>,
+  ) -> Result<(), Error> {
     Runtime::new()
       .expect("Failed to create Tokio runtime")
       .block_on(async {

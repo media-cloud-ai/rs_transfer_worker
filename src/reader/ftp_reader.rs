@@ -3,6 +3,7 @@ use crate::{message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use ftp::FtpError;
+use mcai_worker_sdk::{prelude::debug, McaiChannel};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
@@ -39,7 +40,12 @@ impl FtpEndpoint for FtpReader {
 
 #[async_trait]
 impl StreamReader for FtpReader {
-  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
+  async fn read_stream(
+    &self,
+    path: &str,
+    sender: Sender<StreamData>,
+    channel: Option<McaiChannel>,
+  ) -> Result<(), Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path = prefix + path;
 
@@ -82,6 +88,12 @@ impl StreamReader for FtpReader {
       .retr(&filename, |reader| {
         let mut total_read_bytes = 0;
         loop {
+          if let Some(channel) = &channel {
+            if channel.lock().unwrap().is_stopped() {
+              return Ok(());
+            }
+          }
+
           let mut buffer = vec![0; buffer_size];
           let read_size = reader
             .read(&mut buffer)
