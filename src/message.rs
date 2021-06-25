@@ -22,6 +22,7 @@ pub fn process(
   let cloned_destination_secret = parameters.destination_secret.unwrap_or_default();
   let cloned_destination_path = parameters.destination_path.clone();
   let cloned_job_result = job_result.clone();
+  let cloned_writer_channel = channel.clone();
 
   let source_secret = parameters.source_secret.unwrap_or_default();
   let source_path = parameters.source_path;
@@ -39,7 +40,7 @@ pub fn process(
         &cloned_destination_path,
         cloned_destination_secret,
         cloned_job_result,
-        channel,
+        cloned_writer_channel.clone(),
         receiver,
         s3_writer_runtime,
       )
@@ -84,6 +85,12 @@ pub fn process(
       .with_message(&e.to_string());
     MessageError::ProcessingError(result)
   })?;
+
+  if let Some(channel) = &channel {
+    if channel.lock().unwrap().is_stopped() {
+      return Ok(job_result.with_status(JobStatus::Stopped));
+    }
+  }
 
   Ok(job_result.with_status(JobStatus::Completed))
 }

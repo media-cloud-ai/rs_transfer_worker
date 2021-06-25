@@ -173,6 +173,12 @@ impl StreamWriter for S3Writer {
     let (tx, rx) = mpsc::channel();
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let mut stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),

@@ -112,6 +112,12 @@ impl FtpWriter {
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
