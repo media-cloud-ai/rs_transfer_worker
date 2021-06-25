@@ -2,6 +2,7 @@ use crate::endpoint::ftp::FtpEndpoint;
 use crate::{message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
+use ftp::FtpError;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
@@ -54,24 +55,61 @@ impl StreamReader for FtpReader {
       .cwd(&directory)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
+    let mut total_file_size = 0;
     if let Some(file_size) = ftp_stream
       .size(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?
     {
+      total_file_size = file_size;
       sender
         .send(StreamData::Size(file_size as u64))
         .await
         .unwrap();
+    }
+
+    let buffer_size = if let Ok(buffer_size) = std::env::var("FTP_READER_BUFFER_SIZE") {
+      buffer_size.parse::<u32>().map_err(|_| {
+        Error::new(
+          ErrorKind::Other,
+          "Unable to parse FTP_READER_BUFFER_SIZE variable",
+        )
+      })? as usize
+    } else {
+      1024 * 1024
     };
 
-    let mut buffer = vec![];
-    let mut result = ftp_stream
-      .simple_retr(&filename)
-      .map_err(|e| Error::new(ErrorKind::Other, e))?;
-    buffer.append(result.get_mut());
+    ftp_stream
+      .retr(&filename, |reader| {
+        let mut total_read_bytes = 0;
+        loop {
+          let mut buffer = vec![0; buffer_size];
+          let read_size = reader
+            .read(&mut buffer)
+            .map_err(|e| FtpError::ConnectionError(e))?;
 
-    sender.send(StreamData::Data(buffer)).await.unwrap();
-    sender.send(StreamData::Eof).await.unwrap();
+          if read_size == 0 {
+            async_std::task::block_on(async {
+              sender.send(StreamData::Eof).await.unwrap();
+            });
+            debug!(
+              "Read {} bytes on {} expected.",
+              total_read_bytes, total_file_size
+            );
+            return Ok(());
+          }
+
+          total_read_bytes += read_size;
+
+          async_std::task::block_on(async {
+            sender
+              .send(StreamData::Data(buffer[0..read_size].to_vec()))
+              .await
+              .unwrap();
+          });
+        }
+      })
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
     Ok(())
   }
 }
