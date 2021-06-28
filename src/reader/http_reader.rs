@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 
 use crate::endpoint::http::{get_headers, get_method, get_url};
 use crate::{message::StreamData, reader::StreamReader};
-use mcai_worker_sdk::McaiChannel;
+use mcai_worker_sdk::prelude::{warn, McaiChannel};
 
 pub struct HttpReader {
   pub endpoint: Option<String>,
@@ -21,7 +21,7 @@ impl StreamReader for HttpReader {
     &self,
     path: &str,
     sender: Sender<StreamData>,
-    _channel: Option<McaiChannel>,
+    channel: Option<McaiChannel>,
   ) -> Result<(), Error> {
     Runtime::new()
       .expect("Failed to create Tokio runtime")
@@ -68,10 +68,24 @@ impl StreamReader for HttpReader {
         }
 
         let bytes = response.bytes();
-        sender
-          .send(StreamData::Data(bytes.await.unwrap().to_vec()))
-          .await
-          .unwrap();
+        let data_bytes = bytes.await.unwrap();
+
+        if let Err(error) = sender.send(StreamData::Data(data_bytes.to_vec())).await {
+          if let Some(channel) = &channel {
+            if channel.lock().unwrap().is_stopped() && sender.is_closed() {
+              warn!(
+                "Data channel closed: could not send {} read bytes.",
+                data_bytes.len()
+              );
+              return Ok(());
+            }
+          }
+
+          return Err(Error::new(
+            ErrorKind::Other,
+            format!("Could not send read data through channel: {}", error),
+          ));
+        }
 
         sender.send(StreamData::Eof).await.unwrap();
         Ok(())

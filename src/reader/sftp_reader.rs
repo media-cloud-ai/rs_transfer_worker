@@ -3,8 +3,7 @@ use crate::message::StreamData;
 use crate::reader::StreamReader;
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{debug, info};
-use mcai_worker_sdk::McaiChannel;
+use mcai_worker_sdk::prelude::{debug, info, warn, McaiChannel};
 use ssh_transfer::KnownHost;
 use std::convert::TryFrom;
 use std::io::{Error, ErrorKind, Read};
@@ -108,10 +107,25 @@ impl StreamReader for SftpReader {
 
       total_read_bytes += read_size;
 
-      sender
+      if let Err(error) = sender
         .send(StreamData::Data(buffer[0..read_size].to_vec()))
         .await
-        .unwrap();
+      {
+        if let Some(channel) = &channel {
+          if channel.lock().unwrap().is_stopped() && sender.is_closed() {
+            warn!(
+              "Data channel closed: could not send {} read bytes.",
+              read_size
+            );
+            return Ok(());
+          }
+        }
+
+        return Err(Error::new(
+          ErrorKind::Other,
+          format!("Could not send read data through channel: {}", error),
+        ));
+      }
     }
   }
 }

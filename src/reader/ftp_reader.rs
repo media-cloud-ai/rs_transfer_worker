@@ -3,7 +3,7 @@ use crate::{message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use ftp::FtpError;
-use mcai_worker_sdk::{prelude::debug, McaiChannel};
+use mcai_worker_sdk::prelude::{debug, warn, McaiChannel};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
@@ -113,11 +113,27 @@ impl StreamReader for FtpReader {
           total_read_bytes += read_size;
 
           async_std::task::block_on(async {
-            sender
+            if let Err(error) = sender
               .send(StreamData::Data(buffer[0..read_size].to_vec()))
               .await
-              .unwrap();
-          });
+            {
+              if let Some(channel) = &channel {
+                if channel.lock().unwrap().is_stopped() && sender.is_closed() {
+                  warn!(
+                    "Data channel closed: could not send {} read bytes.",
+                    read_size
+                  );
+                  return Ok(());
+                }
+              }
+
+              return Err(FtpError::ConnectionError(Error::new(
+                ErrorKind::Other,
+                format!("Could not send read data through channel: {}", error),
+              )));
+            }
+            Ok(())
+          })?;
         }
       })
       .map_err(|e| Error::new(ErrorKind::Other, e))?;

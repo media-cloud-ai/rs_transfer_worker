@@ -2,7 +2,7 @@ use crate::endpoint::s3::S3Endpoint;
 use crate::{message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use mcai_worker_sdk::McaiChannel;
+use mcai_worker_sdk::prelude::{warn, McaiChannel};
 use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3Client, S3};
 use std::io::{Error, ErrorKind, Read};
 use std::sync::{Arc, Mutex};
@@ -106,10 +106,22 @@ impl S3Reader {
         break;
       }
 
-      sender
+      if let Err(error) = sender
         .send(StreamData::Data(buffer[0..size].to_vec()))
         .await
-        .unwrap();
+      {
+        if let Some(channel) = &channel {
+          if channel.lock().unwrap().is_stopped() && sender.is_closed() {
+            warn!("Data channel closed: could not send {} read bytes.", size);
+            return Ok(());
+          }
+        }
+
+        return Err(Error::new(
+          ErrorKind::Other,
+          format!("Could not send read data through channel: {}", error),
+        ));
+      }
     }
     sender.send(StreamData::Eof).await.unwrap();
     Ok(())
