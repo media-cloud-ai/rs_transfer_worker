@@ -1,15 +1,15 @@
 use crate::{message::StreamData, writer::StreamWriter};
 use async_std::channel::Receiver;
-use mcai_worker_sdk::prelude::{info, publish_job_progression, McaiChannel};
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufWriter, Error, ErrorKind, Write};
-use std::path::Path;
+use async_trait::async_trait;
+use mcai_worker_sdk::prelude::{info, publish_job_progression, JobResult, McaiChannel};
+use std::{
+  fs::{self, File, OpenOptions},
+  io::{BufWriter, Error, ErrorKind, Write},
+  path::Path,
+};
 
 #[derive(Clone, Debug)]
 pub struct FileWriter {}
-
-use async_trait::async_trait;
-use mcai_worker_sdk::job::JobResult;
 
 #[async_trait]
 impl StreamWriter for FileWriter {

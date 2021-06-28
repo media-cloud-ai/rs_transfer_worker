@@ -1,12 +1,12 @@
-use crate::endpoint::sftp::SftpEndpoint;
-use crate::message::StreamData;
-use crate::reader::StreamReader;
+use crate::{endpoint::sftp::SftpEndpoint, message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use mcai_worker_sdk::prelude::{debug, info, warn, McaiChannel};
 use ssh_transfer::KnownHost;
-use std::convert::TryFrom;
-use std::io::{Error, ErrorKind, Read};
+use std::{
+  convert::TryFrom,
+  io::{Error, ErrorKind, Read},
+};
 
 pub struct SftpReader {
   pub hostname: String,

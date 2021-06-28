@@ -1,10 +1,10 @@
 use futures::io::ErrorKind;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use reqwest::Method;
+use reqwest::{
+  header::{HeaderMap, HeaderName, HeaderValue},
+  Method,
+};
 use serde_json::Value;
-use std::collections::HashMap;
-use std::io::Error;
-use std::str::FromStr;
+use std::{collections::HashMap, io::Error, str::FromStr};
 use url::Url;
 
 pub fn get_method(method: &str) -> Result<Method, Error> {

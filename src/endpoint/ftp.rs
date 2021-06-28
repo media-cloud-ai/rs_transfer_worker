@@ -1,6 +1,8 @@
-use ftp::openssl::ssl::{SslContext, SslMethod};
-use ftp::types::FileType;
-use ftp::{FtpError, FtpStream};
+use ftp::{
+  openssl::ssl::{SslContext, SslMethod},
+  types::FileType,
+  {FtpError, FtpStream},
+};
 use std::io::{Error, ErrorKind};
 
 pub trait FtpEndpoint {

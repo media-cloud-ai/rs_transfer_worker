@@ -2,8 +2,10 @@ use crate::{message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use mcai_worker_sdk::prelude::{warn, McaiChannel};
-use std::fs::File;
-use std::io::{Error, ErrorKind, Read};
+use std::{
+  fs::File,
+  io::{Error, ErrorKind, Read},
+};
 
 pub struct FileReader {}
 
@@ -29,22 +31,22 @@ impl StreamReader for FileReader {
       }
 
       let mut buffer = vec![0; 30 * 1024];
-      let readed_size = source_file.read(&mut buffer)?;
+      let read_size = source_file.read(&mut buffer)?;
 
-      if readed_size == 0 {
+      if read_size == 0 {
         sender.send(StreamData::Eof).await.unwrap();
         return Ok(());
       }
 
       if let Err(error) = sender
-        .send(StreamData::Data(buffer[0..readed_size].to_vec()))
+        .send(StreamData::Data(buffer[0..read_size].to_vec()))
         .await
       {
         if let Some(channel) = &channel {
           if channel.lock().unwrap().is_stopped() && sender.is_closed() {
             warn!(
               "Data channel closed: could not send {} read bytes.",
-              readed_size
+              read_size
             );
             return Ok(());
           }

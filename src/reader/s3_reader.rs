@@ -1,11 +1,12 @@
-use crate::endpoint::s3::S3Endpoint;
-use crate::{message::StreamData, reader::StreamReader};
+use crate::{endpoint::s3::S3Endpoint, message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use mcai_worker_sdk::prelude::{warn, McaiChannel};
 use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3Client, S3};
-use std::io::{Error, ErrorKind, Read};
-use std::sync::{Arc, Mutex};
+use std::{
+  io::{Error, ErrorKind, Read},
+  sync::{Arc, Mutex},
+};
 use tokio::runtime::Runtime;
 
 pub struct S3Reader {

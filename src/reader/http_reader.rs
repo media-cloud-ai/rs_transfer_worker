@@ -1,12 +1,14 @@
+use crate::{
+  endpoint::http::{get_headers, get_method, get_url},
+  message::StreamData,
+  reader::StreamReader,
+};
 use async_std::channel::Sender;
 use async_trait::async_trait;
+use mcai_worker_sdk::prelude::{warn, McaiChannel};
 use reqwest::{Method, StatusCode};
 use std::io::{Error, ErrorKind};
 use tokio::runtime::Runtime;
-
-use crate::endpoint::http::{get_headers, get_method, get_url};
-use crate::{message::StreamData, reader::StreamReader};
-use mcai_worker_sdk::prelude::{warn, McaiChannel};
 
 pub struct HttpReader {
   pub endpoint: Option<String>,

@@ -1,4 +1,4 @@
-use crate::{message::StreamData, writer::StreamWriter};
+use crate::{endpoint::s3::S3Endpoint, message::StreamData, writer::StreamWriter};
 use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
 use mcai_worker_sdk::prelude::{info, publish_job_progression, JobResult, McaiChannel};
@@ -8,14 +8,11 @@ use rusoto_s3::{
 };
 use std::{
   io::{Error, ErrorKind},
-  sync::mpsc,
+  sync::{mpsc, Arc, Mutex},
   thread,
   time::Duration,
 };
 use threadpool::ThreadPool;
-
-use crate::endpoint::s3::S3Endpoint;
-use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
 #[derive(Clone, Debug)]

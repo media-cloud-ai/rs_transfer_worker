@@ -1,12 +1,12 @@
-use crate::endpoint::ftp::FtpEndpoint;
-use crate::message::StreamData;
-use crate::writer::StreamWriter;
+use crate::{endpoint::ftp::FtpEndpoint, message::StreamData, writer::StreamWriter};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
 use mcai_worker_sdk::prelude::{debug, info, publish_job_progression, JobResult, McaiChannel};
-use std::io::{Error, ErrorKind, Write};
-use std::path::{Path, PathBuf};
+use std::{
+  io::{Error, ErrorKind, Write},
+  path::{Path, PathBuf},
+};
 
 #[derive(Clone, Debug)]
 pub struct FtpWriter {

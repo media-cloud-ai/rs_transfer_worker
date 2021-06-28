@@ -1,11 +1,12 @@
-use crate::endpoint::ftp::FtpEndpoint;
-use crate::{message::StreamData, reader::StreamReader};
+use crate::{endpoint::ftp::FtpEndpoint, message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use ftp::FtpError;
 use mcai_worker_sdk::prelude::{debug, warn, McaiChannel};
-use std::io::{Error, ErrorKind};
-use std::path::Path;
+use std::{
+  io::{Error, ErrorKind},
+  path::Path,
+};
 
 pub struct FtpReader {
   pub hostname: String,

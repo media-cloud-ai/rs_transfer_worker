@@ -1,11 +1,15 @@
-use crate::reader::*;
-use crate::writer::*;
-use crate::{Secret, TransferWorkerParameters};
+use crate::{
+  reader::*,
+  writer::*,
+  {Secret, TransferWorkerParameters},
+};
 use async_std::{channel, task};
 use mcai_worker_sdk::prelude::{info, JobResult, JobStatus, McaiChannel, MessageError};
-use std::io::Error;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{
+  io::Error,
+  sync::{Arc, Mutex},
+  thread,
+};
 use tokio::runtime::Runtime;
 
 pub enum StreamData {
