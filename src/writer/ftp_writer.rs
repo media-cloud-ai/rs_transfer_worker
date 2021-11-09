@@ -1,13 +1,12 @@
-use crate::endpoint::ftp::FtpEndpoint;
-use crate::message::StreamData;
-use crate::writer::StreamWriter;
+use crate::{endpoint::ftp::FtpEndpoint, message::StreamData, writer::StreamWriter};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
-use mcai_worker_sdk::job::JobResult;
-use mcai_worker_sdk::{debug, info, publish_job_progression, McaiChannel};
-use std::io::{Error, ErrorKind, Write};
-use std::path::{Path, PathBuf};
+use mcai_worker_sdk::prelude::{debug, info, publish_job_progression, JobResult, McaiChannel};
+use std::{
+  io::{Error, ErrorKind, Write},
+  path::{Path, PathBuf},
+};
 
 #[derive(Clone, Debug)]
 pub struct FtpWriter {
@@ -25,11 +24,11 @@ impl FtpEndpoint for FtpWriter {
   }
 
   fn get_port(&self) -> u16 {
-    self.port.clone().unwrap_or(21)
+    self.port.unwrap_or(21)
   }
 
   fn is_secure(&self) -> bool {
-    self.secure.clone().unwrap_or(false)
+    self.secure.unwrap_or(false)
   }
 
   fn get_username(&self) -> Option<String> {
@@ -113,6 +112,12 @@ impl FtpWriter {
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),

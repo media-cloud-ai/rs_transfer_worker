@@ -1,15 +1,15 @@
 use crate::{message::StreamData, writer::StreamWriter};
 use async_std::channel::Receiver;
-use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufWriter, Error, ErrorKind, Write};
-use std::path::Path;
+use async_trait::async_trait;
+use mcai_worker_sdk::prelude::{info, publish_job_progression, JobResult, McaiChannel};
+use std::{
+  fs::{self, File, OpenOptions},
+  io::{BufWriter, Error, ErrorKind, Write},
+  path::Path,
+};
 
 #[derive(Clone, Debug)]
 pub struct FileWriter {}
-
-use async_trait::async_trait;
-use mcai_worker_sdk::job::JobResult;
 
 #[async_trait]
 impl StreamWriter for FileWriter {
@@ -41,6 +41,12 @@ impl StreamWriter for FileWriter {
     let mut max_size = 0;
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),

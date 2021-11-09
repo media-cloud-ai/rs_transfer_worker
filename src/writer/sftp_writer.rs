@@ -1,12 +1,12 @@
-use crate::endpoint::sftp::SftpEndpoint;
-use crate::message::StreamData;
-use crate::writer::StreamWriter;
+use crate::{endpoint::sftp::SftpEndpoint, message::StreamData, writer::StreamWriter};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
-use mcai_worker_sdk::{debug, info, job::JobResult, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::prelude::{debug, info, publish_job_progression, JobResult, McaiChannel};
 use ssh_transfer::KnownHost;
-use std::convert::TryFrom;
-use std::io::{Error, ErrorKind, Write};
+use std::{
+  convert::TryFrom,
+  io::{Error, ErrorKind, Write},
+};
 
 #[derive(Clone, Debug)]
 pub struct SftpWriter {
@@ -70,6 +70,12 @@ impl StreamWriter for SftpWriter {
     let mut max_size = 0;
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),

@@ -1,4 +1,4 @@
-use mcai_worker_sdk::debug;
+use mcai_worker_sdk::prelude::debug;
 use ssh_transfer::{AuthenticationType, Configuration, Connection};
 use std::io::Error;
 

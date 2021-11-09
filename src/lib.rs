@@ -8,9 +8,7 @@ pub mod secret;
 mod writer;
 
 use crate::secret::Secret;
-use mcai_worker_sdk::{
-  job::JobResult, JsonSchema, McaiChannel, MessageError, MessageEvent, Version,
-};
+use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, MessageEvent, Result, Version};
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));
@@ -52,7 +50,7 @@ It support in output: Local, FTP, S3."#
     channel: Option<McaiChannel>,
     parameters: TransferWorkerParameters,
     job_result: JobResult,
-  ) -> Result<JobResult, MessageError> {
+  ) -> Result<JobResult> {
     message::process(channel, parameters, job_result)
   }
 }

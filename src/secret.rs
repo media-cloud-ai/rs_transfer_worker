@@ -1,4 +1,4 @@
-use mcai_worker_sdk::JsonSchema;
+use mcai_worker_sdk::prelude::JsonSchema;
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(tag = "type")]

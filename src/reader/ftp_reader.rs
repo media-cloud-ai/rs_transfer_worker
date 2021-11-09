@@ -1,9 +1,12 @@
-use crate::endpoint::ftp::FtpEndpoint;
-use crate::{message::StreamData, reader::StreamReader};
+use crate::{endpoint::ftp::FtpEndpoint, message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use std::io::{Error, ErrorKind};
-use std::path::Path;
+use ftp::FtpError;
+use mcai_worker_sdk::prelude::{debug, warn, McaiChannel};
+use std::{
+  io::{Error, ErrorKind},
+  path::Path,
+};
 
 pub struct FtpReader {
   pub hostname: String,
@@ -20,11 +23,11 @@ impl FtpEndpoint for FtpReader {
   }
 
   fn get_port(&self) -> u16 {
-    self.port.clone().unwrap_or(21)
+    self.port.unwrap_or(21)
   }
 
   fn is_secure(&self) -> bool {
-    self.secure.clone().unwrap_or(false)
+    self.secure.unwrap_or(false)
   }
 
   fn get_username(&self) -> Option<String> {
@@ -38,7 +41,12 @@ impl FtpEndpoint for FtpReader {
 
 #[async_trait]
 impl StreamReader for FtpReader {
-  async fn read_stream(&self, path: &str, sender: Sender<StreamData>) -> Result<(), Error> {
+  async fn read_stream(
+    &self,
+    path: &str,
+    sender: Sender<StreamData>,
+    channel: Option<McaiChannel>,
+  ) -> Result<(), Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path = prefix + path;
 
@@ -54,24 +62,83 @@ impl StreamReader for FtpReader {
       .cwd(&directory)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
+    let mut total_file_size = 0;
     if let Some(file_size) = ftp_stream
       .size(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?
     {
+      total_file_size = file_size;
       sender
         .send(StreamData::Size(file_size as u64))
         .await
         .unwrap();
+    }
+
+    let buffer_size = if let Ok(buffer_size) = std::env::var("FTP_READER_BUFFER_SIZE") {
+      buffer_size.parse::<u32>().map_err(|_| {
+        Error::new(
+          ErrorKind::Other,
+          "Unable to parse FTP_READER_BUFFER_SIZE variable",
+        )
+      })? as usize
+    } else {
+      1024 * 1024
     };
 
-    let mut buffer = vec![];
-    let mut result = ftp_stream
-      .simple_retr(&filename)
-      .map_err(|e| Error::new(ErrorKind::Other, e))?;
-    buffer.append(result.get_mut());
+    ftp_stream
+      .retr(&filename, |reader| {
+        let mut total_read_bytes = 0;
+        loop {
+          if let Some(channel) = &channel {
+            if channel.lock().unwrap().is_stopped() {
+              return Ok(());
+            }
+          }
 
-    sender.send(StreamData::Data(buffer)).await.unwrap();
-    sender.send(StreamData::Eof).await.unwrap();
+          let mut buffer = vec![0; buffer_size];
+          let read_size = reader
+            .read(&mut buffer)
+            .map_err(FtpError::ConnectionError)?;
+
+          if read_size == 0 {
+            async_std::task::block_on(async {
+              sender.send(StreamData::Eof).await.unwrap();
+            });
+            debug!(
+              "Read {} bytes on {} expected.",
+              total_read_bytes, total_file_size
+            );
+            return Ok(());
+          }
+
+          total_read_bytes += read_size;
+
+          async_std::task::block_on(async {
+            if let Err(error) = sender
+              .send(StreamData::Data(buffer[0..read_size].to_vec()))
+              .await
+            {
+              if let Some(channel) = &channel {
+                if channel.lock().unwrap().is_stopped() && sender.is_closed() {
+                  warn!(
+                    "Data channel closed: could not send {} read bytes.",
+                    read_size
+                  );
+                  return Ok(());
+                }
+              }
+
+              return Err(FtpError::ConnectionError(Error::new(
+                ErrorKind::Other,
+                format!("Could not send read data through channel: {}", error),
+              )));
+            }
+            Ok(())
+          })?;
+        }
+      })
+      .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
     Ok(())
   }
 }

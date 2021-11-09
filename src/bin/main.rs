@@ -1,4 +1,4 @@
-use mcai_worker_sdk::start_worker;
+use mcai_worker_sdk::prelude::start_worker;
 use transfer_worker::TransferEvent;
 
 fn main() {

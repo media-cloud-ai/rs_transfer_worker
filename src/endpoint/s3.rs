@@ -1,8 +1,10 @@
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_s3::S3Client;
-use std::io::{Error, ErrorKind};
-use std::str::FromStr;
+use std::{
+  io::{Error, ErrorKind},
+  str::FromStr,
+};
 
 pub trait S3Endpoint {
   fn get_hostname(&self) -> Option<String>;

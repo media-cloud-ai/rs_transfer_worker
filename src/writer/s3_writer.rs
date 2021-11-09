@@ -1,22 +1,18 @@
-use crate::{message::StreamData, writer::StreamWriter};
+use crate::{endpoint::s3::S3Endpoint, message::StreamData, writer::StreamWriter};
 use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
-use mcai_worker_sdk::job::JobResult;
-use mcai_worker_sdk::{info, publish_job_progression, McaiChannel};
+use mcai_worker_sdk::prelude::{info, publish_job_progression, JobResult, McaiChannel};
 use rusoto_s3::{
   CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
   CreateMultipartUploadRequest, UploadPartRequest, S3,
 };
 use std::{
   io::{Error, ErrorKind},
-  sync::mpsc,
+  sync::{mpsc, Arc, Mutex},
   thread,
   time::Duration,
 };
 use threadpool::ThreadPool;
-
-use crate::endpoint::s3::S3Endpoint;
-use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
 #[derive(Clone, Debug)]
@@ -174,6 +170,12 @@ impl StreamWriter for S3Writer {
     let (tx, rx) = mpsc::channel();
 
     loop {
+      if let Some(channel) = &channel {
+        if channel.lock().unwrap().is_stopped() {
+          return Ok(());
+        }
+      }
+
       let mut stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
