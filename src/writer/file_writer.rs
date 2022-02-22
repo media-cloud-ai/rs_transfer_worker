@@ -68,7 +68,7 @@ impl StreamWriter for FileWriter {
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }
-          file_writer.write_all(&data)?;
+          file_writer.write_all(data)?;
         }
         _ => {}
       }

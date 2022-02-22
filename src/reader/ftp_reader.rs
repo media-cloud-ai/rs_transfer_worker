@@ -59,12 +59,12 @@ impl StreamReader for FtpReader {
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     ftp_stream
-      .cwd(&directory)
+      .cwd(directory)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     let mut total_file_size = 0;
     if let Some(file_size) = ftp_stream
-      .size(&filename)
+      .size(filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?
     {
       total_file_size = file_size;
@@ -86,7 +86,7 @@ impl StreamReader for FtpReader {
     };
 
     ftp_stream
-      .retr(&filename, |reader| {
+      .retr(filename, |reader| {
         let mut total_read_bytes = 0;
         loop {
           if let Some(channel) = &channel {
@@ -163,7 +163,7 @@ pub fn test_ftp_reader_getters() {
 
   assert_eq!(ftp_reader.get_hostname(), hostname);
   assert_eq!(ftp_reader.get_port(), 21);
-  assert_eq!(ftp_reader.is_secure(), false);
+  assert!(!ftp_reader.is_secure());
   assert_eq!(ftp_reader.get_username(), username);
   assert_eq!(ftp_reader.get_password(), password);
 }
