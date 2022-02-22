@@ -13,6 +13,14 @@ build:format:
   stage: test
   script: cargo fmt -- --check
 
+build:coverage:
+  stage: test
+  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
+  after_script:
+    - apt-get install -y curl
+    - bash <(curl -s https://codecov.io/bash)
+  coverage: '/^\d+.\d+% coverage/'
+
 benchmark:
   stage: benchmark
   services:
