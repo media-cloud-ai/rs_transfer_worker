@@ -7,3 +7,8 @@ include:
     file: '/rust/rust-publish-docker.yml'
   - project: 'media-cloud-ai/ci/pipelines'
     file: '/rust/rust-base.yml'
+
+build:format:
+  stage: test
+  script: cargo fmt -- --check
+
