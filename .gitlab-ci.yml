@@ -1,7 +1,7 @@
 stages:
   - test
-  - benchmark
   - publish
+  - benchmark
 
 include:
   - project: 'media-cloud-ai/ci/pipelines'
@@ -23,17 +23,18 @@ build:coverage:
 
 benchmark:
   stage: benchmark
+  image: docker/compose:latest
   services:
     - docker:dind
-  script:
+  before_script:
     - export VERSION=`cargo pkgid | cut -d# -f2 | cut -d':' -f2`
-    - echo $VERSION #    - if [ "$VERSION" != "$CI_BUILD_TAG" ]; then exit -1; fi
-    # install docker-compose
-    - curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    - chmod +x /usr/local/bin/docker-compose && ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-    # launch benchmarks
-    - docker-compose up
-    - cargo bench
+    - if [ "$VERSION" != "$CI_BUILD_TAG" ]; then exit -1; fi
+    - docker info
+    - docker-compose version
+  script:
+    - docker build -t transfer_worker_benches -f ./benches/Dockerfile .
+    - docker-compose up -d
+    - docker run --rm transfer_worker_benches
     - docker-compose down
-#  only:
-#    - tags
+  only:
+    - tags
