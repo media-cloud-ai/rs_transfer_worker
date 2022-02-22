@@ -1,5 +1,6 @@
 stages:
   - test
+  - benchmark
   - publish
 
 include:
@@ -12,3 +13,19 @@ build:format:
   stage: test
   script: cargo fmt -- --check
 
+benchmark:
+  stage: benchmark
+  services:
+    - docker:dind
+  script:
+    - export VERSION=`cargo pkgid | cut -d# -f2 | cut -d':' -f2`
+    - echo $VERSION #    - if [ "$VERSION" != "$CI_BUILD_TAG" ]; then exit -1; fi
+    # install docker-compose
+    - curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    - chmod +x /usr/local/bin/docker-compose && ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+    # launch benchmarks
+    - docker-compose up
+    - cargo bench
+    - docker-compose down
+#  only:
+#    - tags
