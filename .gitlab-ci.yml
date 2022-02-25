@@ -39,21 +39,10 @@ benchmark:
   before_script:
     - docker info
     - docker-compose version
-    - ls -l
-    - ls -l ./tests/sftp/ssh_keys
   script:
+    - docker build -t transfer_worker_benches -f ./benches/Dockerfile .
+    - docker-compose up -d
+    - docker run --rm transfer_worker_benches
     - docker-compose down
-    - docker-compose rm -f
-    - docker-compose ps -a
-    - docker volume ls
-    - docker volume prune -f
-    - docker volume ls
-    - docker-compose create
-    - docker inspect sftp_server
-    - docker-compose up
-#    - docker build -t transfer_worker_benches -f ./benches/Dockerfile .
-#    - docker-compose up -d
-#    - docker run --rm transfer_worker_benches
-#    - docker-compose down
-#  only:
-#    - tags
+  # only:
+  #   - tags

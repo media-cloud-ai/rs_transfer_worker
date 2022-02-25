@@ -13,18 +13,13 @@ services:
     restart: always
 
   sftp:
-    image: atmoz/sftp
+    build: ./tests/sftp
     container_name: sftp_server
     ports:
       - "22222:22"
     volumes:
       - ./tests/sftp/data:/home/sftp_user/data
-      - ./tests/sftp/ssh_keys:/temp
-    entrypoint: []
-    command: [
-      "bash", "--verbose", "-c",
-      "ls -l /temp && cp /temp/* /etc/ssh  && ls -l /etc/ssh && chmod 600 /etc/ssh/ssh_host_* && ls -l /etc/ssh && /entrypoint sftp_user:sftp_password:1000::data"
-    ]
+    command: sftp_user:sftp_password:1000::data
     restart: always
 
   http_nginx:
