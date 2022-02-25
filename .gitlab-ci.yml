@@ -9,27 +9,17 @@ include:
   - project: 'media-cloud-ai/ci/pipelines'
     file: '/rust/rust-base.yml'
 
-build:clippy:
-  stage: test
-  script: echo "Skip!"
-
-build:test:
-  stage: test
-  script: echo "Skip!"
-
 build:format:
   stage: test
-  script: echo "Skip!"
-#  script: cargo fmt -- --check
+  script: cargo fmt -- --check
 
 build:coverage:
   stage: test
-  script: echo "Skip!"
-#  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
-#  after_script:
-#    - apt-get install -y curl
-#    - bash <(curl -s https://codecov.io/bash)
-#  coverage: '/^\d+.\d+% coverage/'
+  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
+  after_script:
+    - apt-get install -y curl
+    - bash <(curl -s https://codecov.io/bash)
+  coverage: '/^\d+.\d+% coverage/'
 
 benchmark:
   stage: benchmark
@@ -44,5 +34,5 @@ benchmark:
     - docker-compose up -d
     - docker run --rm transfer_worker_benches
     - docker-compose down
-  # only:
-  #   - tags
+  only:
+    - tags
