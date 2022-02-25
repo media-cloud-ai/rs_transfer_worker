@@ -37,7 +37,7 @@ impl StreamReader for HttpReader {
         };
 
         let url = if let Some(endpoint) = &self.endpoint {
-          let mut url = get_url(&endpoint)?;
+          let mut url = get_url(endpoint)?;
           url.set_path(path);
           url
         } else {

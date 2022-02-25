@@ -8,7 +8,7 @@ pub mod secret;
 mod writer;
 
 use crate::secret::Secret;
-use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, MessageEvent, Result, Version};
+use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version};
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));
@@ -25,7 +25,7 @@ pub struct TransferWorkerParameters {
   destination_secret: Option<Secret>,
 }
 
-impl MessageEvent<TransferWorkerParameters> for TransferEvent {
+impl McaiWorker<TransferWorkerParameters> for TransferEvent {
   fn get_name(&self) -> String {
     "Transfer".to_string()
   }

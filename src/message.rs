@@ -134,7 +134,7 @@ async fn start_writer(
       };
       writer
         .write_stream(
-          &cloned_destination_path,
+          cloned_destination_path,
           receiver,
           channel,
           cloned_job_result,
@@ -153,7 +153,7 @@ async fn start_writer(
       let writer = FileWriter {};
       writer
         .write_stream(
-          &cloned_destination_path,
+          cloned_destination_path,
           receiver,
           channel,
           cloned_job_result,
@@ -177,7 +177,7 @@ async fn start_writer(
       };
       writer
         .write_stream(
-          &cloned_destination_path,
+          cloned_destination_path,
           receiver,
           channel,
           cloned_job_result,
@@ -202,7 +202,7 @@ async fn start_writer(
       };
       writer
         .write_stream(
-          &cloned_destination_path,
+          cloned_destination_path,
           receiver,
           channel,
           cloned_job_result,

@@ -1505,9 +1505,9 @@ checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 
 [[package]]
 name = "mcai_worker_sdk"
-version = "1.0.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db52b7c93f30f35ffca0f9936a0173fd71d447bfad869f447e432ba126ab0700"
+checksum = "97fc3091ad1d1a2a63da6465357e345b0f208042d8b2de1799e3382b1592e374"
 dependencies = [
  "amq-protocol",
  "amq-protocol-types",
@@ -3536,9 +3536,9 @@ checksum = "b07db065a5cf61a7e4ba64f29e67db906fb1787316516c4e6e5ff0fea1efcd8a"
 
 [[package]]
 name = "yaserde"
-version = "0.5.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abec9f4fcec41a41918dbf946ee0c68b650bdfe78cd5d6e291b2e4ec1e4fec54"
+checksum = "a2776ec5bb20e76d89268e87e1ea66c078b94f55e9771e4d648adda3019f87fc"
 dependencies = [
  "log",
  "xml-rs",
@@ -3546,14 +3546,16 @@ dependencies = [
 
 [[package]]
 name = "yaserde_derive"
-version = "0.5.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73eac190977781ca4dcb6f5277ac63d9e122e86dbca838744fae51030639e860"
+checksum = "5c0b0a4701f203ebaecce4971a6bb8575aa07b617bdc39ddfc6ffeff3a38530d"
 dependencies = [
  "heck",
+ "log",
  "proc-macro2",
  "quote",
  "syn",
+ "xml-rs",
 ]
 
 [[package]]

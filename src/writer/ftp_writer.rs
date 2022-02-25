@@ -201,7 +201,7 @@ pub fn test_ftp_writer_getters() {
 
   assert_eq!(ftp_writer.get_hostname(), hostname);
   assert_eq!(ftp_writer.get_port(), 21);
-  assert_eq!(ftp_writer.is_secure(), false);
+  assert!(!ftp_writer.is_secure());
   assert_eq!(ftp_writer.get_username(), username);
   assert_eq!(ftp_writer.get_password(), password);
 }
