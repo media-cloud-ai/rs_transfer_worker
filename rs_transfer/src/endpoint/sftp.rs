@@ -1,4 +1,3 @@
-use mcai_worker_sdk::prelude::debug;
 use ssh_transfer::{AuthenticationType, Configuration, Connection};
 use std::io::Error;
 
@@ -9,7 +8,7 @@ pub trait SftpEndpoint {
   fn get_password(&self) -> Option<String>;
 
   fn get_sftp_stream(&self) -> Result<Connection, Error> {
-    debug!(
+    log::debug!(
       "Attempting to connect to {}:{}.",
       &self.get_hostname(),
       self.get_port()

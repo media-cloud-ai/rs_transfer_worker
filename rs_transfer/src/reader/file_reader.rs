@@ -1,7 +1,9 @@
-use crate::{message::StreamData, reader::StreamReader};
+use crate::{
+  StreamData,
+  reader::{StreamReader, ReaderNotification}
+};
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{warn, McaiChannel};
 use std::{
   fs::File,
   io::{Error, ErrorKind, Read},
@@ -15,7 +17,7 @@ impl StreamReader for FileReader {
     &self,
     path: &str,
     sender: Sender<StreamData>,
-    channel: Option<McaiChannel>,
+    channel: &dyn ReaderNotification,
   ) -> Result<(), Error> {
     let mut source_file = File::open(path)?;
 
@@ -24,10 +26,8 @@ impl StreamReader for FileReader {
     }
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
-          return Ok(());
-        }
+      if channel.is_stopped() {
+        return Ok(());
       }
 
       let mut buffer = vec![0; 30 * 1024];
@@ -39,18 +39,17 @@ impl StreamReader for FileReader {
       }
 
       if let Err(error) = sender
-        .send(StreamData::Data(buffer[0..read_size].to_vec()))
-        .await
+          .send(StreamData::Data(buffer[0..read_size].to_vec()))
+          .await
       {
-        if let Some(channel) = &channel {
-          if channel.lock().unwrap().is_stopped() && sender.is_closed() {
-            warn!(
-              "Data channel closed: could not send {} read bytes.",
-              read_size
-            );
-            return Ok(());
-          }
+        if channel.is_stopped() && sender.is_closed() {
+          log::warn!(
+                    "Data channel closed: could not send {} read bytes.",
+                    read_size
+                  );
+          return Ok(());
         }
+
 
         return Err(Error::new(
           ErrorKind::Other,

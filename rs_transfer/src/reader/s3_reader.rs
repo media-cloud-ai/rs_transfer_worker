@@ -1,7 +1,10 @@
-use crate::{endpoint::s3::S3Endpoint, message::StreamData, reader::StreamReader};
+use crate::{
+  endpoint::s3::S3Endpoint,
+  StreamData,
+  reader::{ReaderNotification, StreamReader}
+};
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{warn, McaiChannel};
 use rusoto_s3::{GetObjectRequest, HeadObjectRequest, S3Client, S3};
 use std::{
   io::{Error, ErrorKind, Read},
@@ -40,7 +43,7 @@ impl S3Reader {
     path: &str,
     bucket: &str,
     sender: Sender<StreamData>,
-    channel: Option<McaiChannel>,
+    channel: &dyn ReaderNotification,
   ) -> Result<(), Error> {
     let head_request = HeadObjectRequest {
       bucket: bucket.to_string(),
@@ -95,10 +98,8 @@ impl S3Reader {
     };
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
+      if channel.is_stopped(){
           return Ok(());
-        }
       }
 
       let mut buffer: Vec<u8> = vec![0; buffer_size];
@@ -111,11 +112,9 @@ impl S3Reader {
         .send(StreamData::Data(buffer[0..size].to_vec()))
         .await
       {
-        if let Some(channel) = &channel {
-          if channel.lock().unwrap().is_stopped() && sender.is_closed() {
-            warn!("Data channel closed: could not send {} read bytes.", size);
+          if channel.is_stopped() && sender.is_closed() {
+            log::warn!("Data channel closed: could not send {} read bytes.", size);
             return Ok(());
-          }
         }
 
         return Err(Error::new(
@@ -135,7 +134,7 @@ impl StreamReader for S3Reader {
     &self,
     path: &str,
     sender: Sender<StreamData>,
-    channel: Option<McaiChannel>,
+    channel: &dyn ReaderNotification,
   ) -> Result<(), Error> {
     let cloned_bucket = self.bucket.clone();
     let cloned_path = path.to_string();

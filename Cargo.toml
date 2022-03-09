@@ -1,48 +1,31 @@
 [package]
-name = "transfer_worker"
-version = "0.4.3"
+name = "rs_transfer_worker"
+version = "0.0.1"
 authors = [
-  "Valentin Noel <valentin.noel@media-io.com>",
-  "Marc-Antoine Arnaud <maarnaud@media-io.com>",
+    "Valentin Noel <valentin.noel@media-io.com>",
+    "Marc-Antoine Arnaud <maarnaud@media-io.com>",
+    "Thibaud Le Graverend <thibaud.legraverend@media-io.com>",
 ]
 edition = "2018"
 
-[lib]
-crate-type = ["lib"]
-
-[[bin]]
-name = "transfer_worker"
-path = "src/bin/main.rs"
+[workspace]
+members = [
+    "rs_transfer",
+]
 
 [dependencies]
 async-std = { version = "1.5.0", features = ["unstable"]}
-async-trait = "0.1.31"
-bytes = "1.0"
-ftp = { version = "3.0.1", features = ["secure"], path = "rust-ftp" }
-futures = "0.3"
-futures-util = "0.3"
+criterion = "0.3.5"
+rs_transfer = { version = "0.4.2", path = "rs_transfer" }
 mcai_worker_sdk = "1.1.1"
-reqwest = "0.10"
-rusoto_core = "0.46"
-rusoto_credential = "0.46"
-rusoto_s3 = "0.46"
-schemars = "0.8"
-serde = "^1.0"
-serde_json = "^1.0"
-serde_derive = "^1.0"
-ssh-transfer = "0.2"
-threadpool = "1.8"
-tokio = "1.7"
+schemars = "0.8.0"
+serde = { version = "^1.0", features = ["derive"] }
+tokio = "0.2"
 tokio-io = "0.1"
-url = "2.1.1"
-
-[dev-dependencies]
-mockito = "0.30"
-rusoto_mock = "0.45"
-criterion = "0.3"
 
 [build-dependencies]
 built = "0.4"
+
 
 [[bench]]
 name = "transfer_worker_benchmark"

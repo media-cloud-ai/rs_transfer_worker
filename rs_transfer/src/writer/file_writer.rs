@@ -1,10 +1,10 @@
-use crate::{message::StreamData, writer::StreamWriter};
+use crate::{StreamData, writer::StreamWriter};
+use crate::writer::TransferJobAndWriterNotification;
 use async_std::channel::Receiver;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{info, publish_job_progression, JobResult, McaiChannel};
 use std::{
   fs::{self, File, OpenOptions},
-  io::{BufWriter, Error, ErrorKind, Write},
+  io::{BufWriter, Error, Write},
   path::Path,
 };
 
@@ -17,8 +17,7 @@ impl StreamWriter for FileWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    channel: Option<McaiChannel>,
-    job_result: JobResult,
+    job_and_notification: &dyn TransferJobAndWriterNotification
   ) -> Result<(), Error> {
     let destination_path = Path::new(path);
     let destination_directory = destination_path.parent().unwrap_or_else(|| Path::new("/"));
@@ -41,17 +40,15 @@ impl StreamWriter for FileWriter {
     let mut max_size = 0;
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
+      if job_and_notification.is_stopped() {
           return Ok(());
-        }
       }
 
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
         Ok(StreamData::Eof) => {
-          info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
+          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
           return Ok(());
         }
         Ok(StreamData::Data(ref data)) => {
@@ -60,12 +57,11 @@ impl StreamWriter for FileWriter {
 
           received_bytes += data.len();
           if let Some(file_size) = file_size {
-            let percent = received_bytes as f32 / file_size as f32 * 100.0;
+            let percent = (received_bytes as f32 / file_size as f32 * 100.0) as u8;
 
-            if percent as u8 > prev_percent {
-              prev_percent = percent as u8;
-              publish_job_progression(channel.clone(), job_result.get_job_id(), percent as u8)
-                .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
+            if percent > prev_percent {
+              prev_percent = percent;
+              job_and_notification.progress(percent)?;
             }
           }
           file_writer.write_all(data)?;
