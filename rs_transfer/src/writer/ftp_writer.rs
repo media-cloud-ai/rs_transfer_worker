@@ -160,12 +160,7 @@ impl StreamWriter for FtpWriter {
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     self
-      .upload_file(
-        &mut ftp_stream,
-        path,
-        receiver,
-        job_and_notification,
-      )
+      .upload_file(&mut ftp_stream, path, receiver, job_and_notification)
       .await?;
 
     log::info!(target: &job_and_notification.get_str_id(), "ending FTP data connection");
