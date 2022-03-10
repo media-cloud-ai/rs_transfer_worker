@@ -9,6 +9,10 @@ include:
   - project: 'media-cloud-ai/ci/pipelines'
     file: '/rust/rust-base.yml'
 
+build:test:
+  stage: test
+  script: cd rs_transfer && cargo test
+
 build:format:
   stage: test
   script: cargo fmt -- --check

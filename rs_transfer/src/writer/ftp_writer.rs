@@ -164,7 +164,7 @@ impl StreamWriter for FtpWriter {
         &mut ftp_stream,
         path,
         receiver,
-        job_and_notification.clone(),
+        job_and_notification,
       )
       .await?;
 
