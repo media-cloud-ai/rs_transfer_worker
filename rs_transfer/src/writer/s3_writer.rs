@@ -1,19 +1,19 @@
-use crate::{StreamData, writer::StreamWriter};
+use crate::endpoint::s3::S3Endpoint;
 use crate::writer::TransferJobAndWriterNotification;
+use crate::{writer::StreamWriter, StreamData};
 use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
 use rusoto_s3::{
   CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
   CreateMultipartUploadRequest, UploadPartRequest, S3,
 };
+use std::sync::{Arc, Mutex};
 use std::{
   io::{Error, ErrorKind},
   sync::mpsc,
   thread,
   time::Duration,
 };
-use crate::endpoint::s3::S3Endpoint;
-use std::sync::{Arc, Mutex};
 use threadpool::ThreadPool;
 use tokio::runtime::Runtime;
 
@@ -140,7 +140,7 @@ impl StreamWriter for S3Writer {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification
+    job_and_notification: &dyn TransferJobAndWriterNotification,
   ) -> Result<(), Error> {
     let upload_identifier = self.start_multi_part_s3_upload(path).await?;
 
@@ -221,7 +221,8 @@ impl StreamWriter for S3Writer {
 
             if percent > prev_percent {
               prev_percent = percent;
-              job_and_notification.progress(percent)
+              job_and_notification
+                .progress(percent)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }

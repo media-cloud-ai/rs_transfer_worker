@@ -1,12 +1,11 @@
 use crate::endpoint::sftp::SftpEndpoint;
-use crate::writer::{ StreamWriter, TransferJobAndWriterNotification};
+use crate::writer::{StreamWriter, TransferJobAndWriterNotification};
 use crate::StreamData;
+use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ssh_transfer::KnownHost;
 use std::convert::TryFrom;
 use std::io::{Error, ErrorKind, Write};
-use async_std::channel::Receiver;
-
 
 #[derive(Clone, Debug)]
 pub struct SftpWriter {
@@ -42,7 +41,7 @@ impl StreamWriter for SftpWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification
+    job_and_notification: &dyn TransferJobAndWriterNotification,
   ) -> Result<(), Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
@@ -92,7 +91,8 @@ impl StreamWriter for SftpWriter {
 
             if percent > prev_percent {
               prev_percent = percent;
-              job_and_notification.progress(percent)
+              job_and_notification
+                .progress(percent)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }

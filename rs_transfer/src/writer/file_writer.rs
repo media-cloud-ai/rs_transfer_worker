@@ -1,5 +1,5 @@
-use crate::{StreamData, writer::StreamWriter};
 use crate::writer::TransferJobAndWriterNotification;
+use crate::{writer::StreamWriter, StreamData};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use std::{
@@ -17,7 +17,7 @@ impl StreamWriter for FileWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification
+    job_and_notification: &dyn TransferJobAndWriterNotification,
   ) -> Result<(), Error> {
     let destination_path = Path::new(path);
     let destination_directory = destination_path.parent().unwrap_or_else(|| Path::new("/"));
@@ -41,7 +41,7 @@ impl StreamWriter for FileWriter {
 
     loop {
       if job_and_notification.is_stopped() {
-          return Ok(());
+        return Ok(());
       }
 
       let stream_data = receiver.recv().await;

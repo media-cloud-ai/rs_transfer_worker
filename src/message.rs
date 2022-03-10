@@ -1,15 +1,14 @@
-use async_std::{channel, task};
+use crate::transfer_job::{TransferJobAndNotification, TransferReaderNotification};
 use crate::TransferWorkerParameters;
+use async_std::{channel, task};
 use mcai_worker_sdk::prelude::{info, JobResult, JobStatus, McaiChannel, MessageError};
+use rs_transfer::{reader::*, secret::Secret, writer::*, StreamData};
 use std::{
   io::Error,
   sync::{Arc, Mutex},
   thread,
 };
 use tokio::runtime::Runtime;
-use rs_transfer::{reader::*, secret::Secret, StreamData, writer::*};
-use crate::transfer_job::{TransferJobAndNotification, TransferReaderNotification};
-
 
 pub fn process(
   channel: Option<McaiChannel>,
@@ -34,8 +33,10 @@ pub fn process(
   let (sender, receiver) = channel::bounded(1000);
   let reception_task = thread::spawn(move || {
     task::block_on(async {
-
-      let job_and_notification = TransferJobAndNotification{job_result: cloned_job_result, channel: cloned_writer_channel};
+      let job_and_notification = TransferJobAndNotification {
+        job_result: cloned_job_result,
+        channel: cloned_writer_channel,
+      };
 
       start_writer(
         &cloned_destination_path,
@@ -50,14 +51,15 @@ pub fn process(
 
   let sending_task = thread::spawn(move || {
     task::block_on(async {
-
-      let channel = TransferReaderNotification{ channel: cloned_reader_channel};
+      let channel = TransferReaderNotification {
+        channel: cloned_reader_channel,
+      };
       start_reader(
         &source_path,
         source_secret,
         sender,
         runtime.clone(),
-        &channel
+        &channel,
       )
       .await
     })
@@ -129,11 +131,7 @@ async fn start_writer(
         prefix,
       };
       writer
-        .write_stream(
-          cloned_destination_path,
-          receiver,
-          job_and_notification,
-        )
+        .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
     Secret::Http {
@@ -147,11 +145,7 @@ async fn start_writer(
     Secret::Local {} => {
       let writer = FileWriter {};
       writer
-        .write_stream(
-          cloned_destination_path,
-          receiver,
-          job_and_notification,
-        )
+        .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
     Secret::S3 {
@@ -170,11 +164,7 @@ async fn start_writer(
         runtime,
       };
       writer
-        .write_stream(
-          cloned_destination_path,
-          receiver,
-          job_and_notification,
-        )
+        .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
     Secret::Sftp {
@@ -194,11 +184,7 @@ async fn start_writer(
         known_host,
       };
       writer
-        .write_stream(
-          cloned_destination_path,
-          receiver,
-          job_and_notification,
-        )
+        .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
   }

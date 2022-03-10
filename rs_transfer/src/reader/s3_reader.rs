@@ -1,7 +1,7 @@
 use crate::{
   endpoint::s3::S3Endpoint,
+  reader::{ReaderNotification, StreamReader},
   StreamData,
-  reader::{ReaderNotification, StreamReader}
 };
 use async_std::channel::Sender;
 use async_trait::async_trait;
@@ -98,8 +98,8 @@ impl S3Reader {
     };
 
     loop {
-      if channel.is_stopped(){
-          return Ok(());
+      if channel.is_stopped() {
+        return Ok(());
       }
 
       let mut buffer: Vec<u8> = vec![0; buffer_size];
@@ -112,9 +112,9 @@ impl S3Reader {
         .send(StreamData::Data(buffer[0..size].to_vec()))
         .await
       {
-          if channel.is_stopped() && sender.is_closed() {
-            log::warn!("Data channel closed: could not send {} read bytes.", size);
-            return Ok(());
+        if channel.is_stopped() && sender.is_closed() {
+          log::warn!("Data channel closed: could not send {} read bytes.", size);
+          return Ok(());
         }
 
         return Err(Error::new(

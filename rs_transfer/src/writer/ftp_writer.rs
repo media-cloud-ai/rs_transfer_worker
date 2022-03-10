@@ -1,6 +1,6 @@
 use crate::endpoint::ftp::FtpEndpoint;
-use crate::StreamData;
 use crate::writer::{StreamWriter, TransferJobAndWriterNotification};
+use crate::StreamData;
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
@@ -72,7 +72,7 @@ impl FtpWriter {
     ftp_stream: &mut FtpStream,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification
+    job_and_notification: &dyn TransferJobAndWriterNotification,
   ) -> Result<(), Error> {
     let destination_directory = get_directory(path);
     let filename = get_filename(path)?;
@@ -132,7 +132,8 @@ impl FtpWriter {
 
             if percent > prev_percent {
               prev_percent = percent;
-              job_and_notification.progress(percent)
+              job_and_notification
+                .progress(percent)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }
@@ -152,14 +153,19 @@ impl StreamWriter for FtpWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification
+    job_and_notification: &dyn TransferJobAndWriterNotification,
   ) -> Result<(), Error> {
     let mut ftp_stream = self
       .get_ftp_stream()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     self
-      .upload_file(&mut ftp_stream, path, receiver, job_and_notification.clone())
+      .upload_file(
+        &mut ftp_stream,
+        path,
+        receiver,
+        job_and_notification.clone(),
+      )
       .await?;
 
     log::info!(target: &job_and_notification.get_str_id(), "ending FTP data connection");

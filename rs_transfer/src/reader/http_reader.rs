@@ -1,7 +1,7 @@
 use crate::{
-    StreamData,
-    endpoint::http::{get_headers, get_method, get_url},
-    reader::{StreamReader, ReaderNotification},
+  endpoint::http::{get_headers, get_method, get_url},
+  reader::{ReaderNotification, StreamReader},
+  StreamData,
 };
 use async_std::channel::Sender;
 use async_trait::async_trait;
@@ -72,12 +72,12 @@ impl StreamReader for HttpReader {
         let data_bytes = bytes.await.unwrap();
 
         if let Err(error) = sender.send(StreamData::Data(data_bytes.to_vec())).await {
-            if channel.is_stopped() && sender.is_closed() {
-              log::warn!(
-                "Data channel closed: could not send {} read bytes.",
-                data_bytes.len()
-              );
-              return Ok(());
+          if channel.is_stopped() && sender.is_closed() {
+            log::warn!(
+              "Data channel closed: could not send {} read bytes.",
+              data_bytes.len()
+            );
+            return Ok(());
           }
 
           return Err(Error::new(

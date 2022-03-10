@@ -1,7 +1,7 @@
 pub mod endpoint;
 pub mod reader;
-pub mod writer;
 pub mod secret;
+pub mod writer;
 
 pub enum StreamData {
   Data(Vec<u8>),

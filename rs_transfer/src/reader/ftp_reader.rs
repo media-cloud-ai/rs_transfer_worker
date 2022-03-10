@@ -1,6 +1,7 @@
-use crate::{StreamData,
-            endpoint::ftp::FtpEndpoint,
-            reader::{ReaderNotification, StreamReader}
+use crate::{
+  endpoint::ftp::FtpEndpoint,
+  reader::{ReaderNotification, StreamReader},
+  StreamData,
 };
 use async_std::channel::Sender;
 use async_trait::async_trait;
@@ -106,7 +107,8 @@ impl StreamReader for FtpReader {
             });
             log::debug!(
               "Read {} bytes on {} expected.",
-              total_read_bytes, total_file_size
+              total_read_bytes,
+              total_file_size
             );
             return Ok(());
           }
@@ -118,12 +120,12 @@ impl StreamReader for FtpReader {
               .send(StreamData::Data(buffer[0..read_size].to_vec()))
               .await
             {
-                if channel.is_stopped() && sender.is_closed() {
-                  log::warn!(
-                    "Data channel closed: could not send {} read bytes.",
-                    read_size
-                  );
-                  return Ok(());
+              if channel.is_stopped() && sender.is_closed() {
+                log::warn!(
+                  "Data channel closed: could not send {} read bytes.",
+                  read_size
+                );
+                return Ok(());
               }
 
               return Err(FtpError::ConnectionError(Error::new(
