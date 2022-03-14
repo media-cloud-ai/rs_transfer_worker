@@ -131,7 +131,7 @@ pub fn test_probe_remote_file() {
 
   let result: Value = serde_json::from_str(&result.unwrap()).unwrap();
 
-  let expected = std::fs::read_to_string("./tests/result.json").unwrap();
+  let expected = std::fs::read_to_string("./tests/fprobe/result.json").unwrap();
   let expected: Value = serde_json::from_str(&expected).unwrap();
   assert_eq!(expected, result);
 }
