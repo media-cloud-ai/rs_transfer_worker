@@ -26,5 +26,7 @@ pub trait StreamReader {
 }
 
 pub trait ReaderNotification: Sync + Send {
-  fn is_stopped(&self) -> bool;
+  fn is_stopped(&self) -> bool {
+    false
+  }
 }

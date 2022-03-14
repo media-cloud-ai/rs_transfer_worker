@@ -1,4 +1,5 @@
 pub mod message;
+mod probe;
 mod transfer_job;
 
 use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version};
@@ -18,6 +19,7 @@ pub struct TransferWorkerParameters {
   source_secret: Option<Secret>,
   destination_path: String,
   destination_secret: Option<Secret>,
+  media_probe_secret: Option<Secret>,
 }
 
 impl McaiWorker<TransferWorkerParameters> for TransferEvent {

@@ -1,3 +1,4 @@
+use crate::probe;
 use crate::{
   transfer_job::{TransferReaderNotification, TransferWriterNotification},
   TransferWorkerParameters,
@@ -23,8 +24,12 @@ pub fn process(
   let cloned_reader_channel = channel.clone();
   let cloned_writer_channel = channel.clone();
 
+  let cloned_source_path = parameters.source_path.clone();
+
   let source_secret = parameters.source_secret.unwrap_or_default();
   let source_path = parameters.source_path;
+
+  let upload_type = cloned_destination_secret.clone();
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
 
@@ -105,13 +110,32 @@ pub fn process(
     }
   }
 
+  if upload_type == Secret::Local && parameters.media_probe_secret.is_some() {
+    {
+      let probe_metadata = probe::fprobe(parameters.destination_path.as_str()).unwrap();
+      let metadata_result = probe::upload_metadata(
+        &cloned_source_path,
+        job_result.clone(),
+        &probe_metadata,
+        parameters.media_probe_secret.unwrap(),
+      );
+      metadata_result.map_err(|_e| {
+        let result = job_result
+            .clone()
+            .with_status(JobStatus::Error)
+            .with_message("Error uploading metadatas to S3 bucket");
+        MessageError::ProcessingError(result)
+      })?;
+    }
+  };
+
   Ok(job_result.with_status(JobStatus::Completed))
 }
 
-async fn start_writer(
+pub async fn start_writer(
   cloned_destination_path: &str,
   cloned_destination_secret: Secret,
-  job_and_notification: &TransferWriterNotification,
+  job_and_notification: &dyn TransferWriterNotification,
   receiver: channel::Receiver<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
