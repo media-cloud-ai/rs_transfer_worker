@@ -12,6 +12,10 @@ pub enum Secret {
     password: Option<String>,
     prefix: Option<String>,
   },
+  GCS {
+    credential: GcsCredential,
+    bucket: String,
+  },
   Http {
     endpoint: Option<String>,
     method: Option<String>,
@@ -43,6 +47,22 @@ impl Default for Secret {
   fn default() -> Self {
     Secret::Local
   }
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+pub struct GcsCredential{
+  #[serde(rename = "type")]
+  gcs_type:String,
+  project_id: String,
+  private_key_id: String,
+  private_key: String,
+  client_email: String,
+  client_id: String,
+  auth_uri: String,
+  token_uri: String,
+  auth_provider_x509_cert_url: String,
+  client_x509_cert_url: String,
+
 }
 
 #[test]

@@ -11,9 +11,10 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
-async-std = { version = "1.5.0", features = ["unstable"]}
+async-std = { version = "1.10", features = ["attributes", "tokio1"] }
 async-trait = "0.1.31"
 bytes = "0.5.4"
+cloud-storage = "0.10"
 ftp = { version = "3.0.1", features = ["secure"], path = "rust-ftp" }
 futures = "0.3"
 futures-util = "0.3"
