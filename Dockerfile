@@ -6,6 +6,14 @@ WORKDIR /src
 RUN apt-get update && \
     apt-get install -y \
         libssl-dev \
+        libavutil-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libavformat-dev \
+        libavresample-dev \
+        libpostproc-dev \
+        libswresample-dev \
+        ffmpeg \
         && \
     cargo build --verbose --release && \
     cargo install --path .

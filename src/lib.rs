@@ -1,4 +1,5 @@
 pub mod message;
+#[cfg(feature = "media_probe_and_upload")]
 mod probe;
 mod transfer_job;
 

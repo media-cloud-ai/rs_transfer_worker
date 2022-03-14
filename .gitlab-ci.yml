@@ -1,3 +1,7 @@
+variables:
+  MEDIA_FEATURE_DEPENDENCIES: "libavutil-dev libavdevice-dev libavfilter-dev libavformat-dev libavresample-dev libpostproc-dev libswresample-dev ffmpeg"
+
+
 stages:
   - test
   - publish
@@ -17,8 +21,16 @@ build:format:
   stage: test
   script: cargo fmt -- --check && cd rs_transfer && cargo fmt -- --check
 
+build:clippy:
+  stage: test
+  before_script:
+    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
+  script: cargo clippy --all-targets --all-features -- -D warnings
+
 build:coverage:
   stage: test
+  before_script:
+    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
   script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features && cd rs_transfer && cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
   after_script:
     - apt-get install -y curl

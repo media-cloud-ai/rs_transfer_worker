@@ -1,3 +1,4 @@
+#[cfg(feature = "media_probe_and_upload")]
 use crate::probe;
 use crate::{
   transfer_job::{TransferReaderNotification, TransferWriterNotification},
@@ -110,22 +111,17 @@ pub fn process(
     }
   }
 
+  #[cfg(feature = "media_probe_and_upload")]
   if upload_type == Secret::Local && parameters.media_probe_secret.is_some() {
     {
       let probe_metadata = probe::fprobe(parameters.destination_path.as_str()).unwrap();
-      let metadata_result = probe::upload_metadata(
+      probe::upload_metadata(
         &cloned_source_path,
         job_result.clone(),
         &probe_metadata,
         parameters.media_probe_secret.unwrap(),
-      );
-      metadata_result.map_err(|_e| {
-        let result = job_result
-            .clone()
-            .with_status(JobStatus::Error)
-            .with_message("Error uploading metadatas to S3 bucket");
-        MessageError::ProcessingError(result)
-      })?;
+      )
+      .unwrap();
     }
   };
 
