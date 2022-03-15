@@ -18,16 +18,16 @@ impl StreamReader for FileReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error> {
+  ) -> Result<u64, Error> {
     let mut source_file = File::open(path)?;
 
-    if let Ok(metadata) = source_file.metadata() {
-      sender.send(StreamData::Size(metadata.len())).await.unwrap();
-    }
+    let metadata = source_file.metadata()?;
+    let file_size = metadata.len();
+    sender.send(StreamData::Size(file_size)).await.unwrap();
 
     loop {
       if channel.is_stopped() {
-        return Ok(());
+        return Ok(file_size);
       }
 
       let mut buffer = vec![0; 30 * 1024];
@@ -35,7 +35,7 @@ impl StreamReader for FileReader {
 
       if read_size == 0 {
         sender.send(StreamData::Eof).await.unwrap();
-        return Ok(());
+        return Ok(file_size);
       }
 
       if let Err(error) = sender
@@ -47,7 +47,7 @@ impl StreamReader for FileReader {
             "Data channel closed: could not send {} read bytes.",
             read_size
           );
-          return Ok(());
+          return Ok(file_size);
         }
 
         return Err(Error::new(

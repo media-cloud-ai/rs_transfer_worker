@@ -1,9 +1,11 @@
+mod cursor_reader;
 mod file_reader;
 mod ftp_reader;
 mod http_reader;
 mod s3_reader;
 mod sftp_reader;
 
+pub use cursor_reader::CursorReader;
 pub use file_reader::FileReader;
 pub use ftp_reader::FtpReader;
 pub use http_reader::HttpReader;
@@ -22,7 +24,7 @@ pub trait StreamReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error>;
+  ) -> Result<u64, Error>;
 }
 
 pub trait ReaderNotification: Sync + Send {

@@ -23,7 +23,8 @@ impl StreamReader for HttpReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error> {
+  ) -> Result<u64, Error> {
+    let file_size: u64 = 0;
     Runtime::new()
       .expect("Failed to create Tokio runtime")
       .block_on(async {
@@ -88,6 +89,7 @@ impl StreamReader for HttpReader {
 
         sender.send(StreamData::Eof).await.unwrap();
         Ok(())
-      })
+      })?;
+    Ok(file_size)
   }
 }

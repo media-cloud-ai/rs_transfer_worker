@@ -49,7 +49,7 @@ impl StreamReader for FtpReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error> {
+  ) -> Result<u64, Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path = prefix + path;
 
@@ -139,7 +139,7 @@ impl StreamReader for FtpReader {
       })
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    Ok(())
+    Ok(total_file_size as u64)
   }
 }
 
