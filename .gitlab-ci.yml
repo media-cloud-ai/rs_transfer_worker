@@ -1,5 +1,5 @@
 variables:
-  MEDIA_FEATURE_DEPENDENCIES: "libavutil-dev libavdevice-dev libavfilter-dev libavformat-dev libavresample-dev libpostproc-dev libswresample-dev ffmpeg"
+  MEDIA_FEATURE_DEPENDENCIES: "clang libavutil-dev libavdevice-dev libavfilter-dev libavformat-dev libavresample-dev libpostproc-dev libswresample-dev ffmpeg"
 
 
 stages:
