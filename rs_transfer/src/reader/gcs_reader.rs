@@ -7,6 +7,8 @@ use mcai_worker_sdk::prelude::warn;
 use mcai_worker_sdk::McaiChannel;
 use std::io::{Error, ErrorKind};
 
+const BUFFER_SIZE: usize = 1024*1024;
+
 pub struct GcsReader {
   pub bucket: String,
 }
@@ -34,27 +36,24 @@ impl StreamReader for GcsReader {
       .download_streamed(&self.bucket, path)
       .await
       .unwrap();
+
+    let mut buffer = vec![];
+
     while let Some(byte) = stream.next().await {
-      // On récupère les données qu'on peut
-      let buffer = vec![byte.unwrap()];
-      let buffer_size = buffer.len();
-      if let Err(error) = sender.send(StreamData::Data(buffer)).await {
-        if let Some(channel) = &channel {
-          if channel.lock().unwrap().is_stopped() && sender.is_closed() {
-            warn!(
-              "Data channel closed: could not send {} read bytes.",
-              buffer_size
-            );
-            return Ok(());
-          }
-        }
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!("Could not send read data through channel: {}", error),
-        ));
+      if buffer.len() == BUFFER_SIZE {
+        send_buffer(&sender, &channel, buffer.clone()).await?;
+        buffer.clear();
       }
+      let byte= byte.map_err(|error| {
+        Error::new(
+          ErrorKind::InvalidData,
+          format!("Could not read byte: {:?}", error),
+        )
+      })?;
+      buffer.push(byte);
     }
-   sender.send(StreamData::Eof).await.map_err(|error| {
+    send_buffer(&sender, &channel, buffer).await?;
+    sender.send(StreamData::Eof).await.map_err(|error| {
       Error::new(
         ErrorKind::Other,
         format!("Could not send EOF through channel: {:?}", error),
@@ -62,4 +61,24 @@ impl StreamReader for GcsReader {
     })?;
     Ok(())
   }
+}
+
+async fn send_buffer(
+  sender: &Sender<StreamData>,
+  channel: &Option<McaiChannel>,
+  buffer: Vec<u8>,
+) -> Result<(), Error> {
+  if let Err(error) = sender.send(StreamData::Data(buffer.clone())).await {
+    if let Some(channel) = &channel {
+      if channel.lock().unwrap().is_stopped() && sender.is_closed() {
+        warn!("Data channel closed: could not send {} read bytes.", 42);
+        return Ok(());
+      }
+    }
+    return Err(Error::new(
+      ErrorKind::Other,
+      format!("Could not send read data through channel: {}", error),
+    ));
+  }
+  Ok(())
 }

@@ -177,7 +177,8 @@ pub async fn start_writer(
         .await
     }
     Secret::GCS {
-      credential, bucket,
+      credential: _,
+      bucket: _,
     } => {
       unimplemented!();
     }
@@ -266,9 +267,7 @@ pub(crate) async fn start_reader(
       };
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::GCS {
-      credential, bucket,
-    } => {
+    Secret::GCS { credential, bucket } => {
       let service_account = serde_json::to_string(&credential).unwrap();
       std::env::set_var("SERVICE_ACCOUNT_JSON", service_account);
       let reader = GcsReader { bucket };

@@ -50,9 +50,9 @@ impl Default for Secret {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
-pub struct GcsCredential{
+pub struct GcsCredential {
   #[serde(rename = "type")]
-  gcs_type:String,
+  gcs_type: String,
   project_id: String,
   private_key_id: String,
   private_key: String,
