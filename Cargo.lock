@@ -459,6 +459,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cfb"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74f89d248799e3f15f91b70917f65381062a01bb8e222700ea0e5a7ff9785f9c"
+dependencies = [
+ "byteorder",
+ "uuid",
+]
+
+[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1338,6 +1348,15 @@ checksum = "282a6247722caba404c065016bbfa522806e51714c34f5dfc3e4a3a46fcb4223"
 dependencies = [
  "autocfg",
  "hashbrown",
+]
+
+[[package]]
+name = "infer"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20b2b533137b9cad970793453d4f921c2e91312a6d88b1085c07bc15fc51bb3b"
+dependencies = [
+ "cfb",
 ]
 
 [[package]]
@@ -2311,6 +2330,7 @@ dependencies = [
  "async-std",
  "built",
  "criterion",
+ "infer",
  "log",
  "mcai_worker_sdk",
  "rs_transfer",

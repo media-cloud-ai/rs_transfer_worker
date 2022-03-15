@@ -1,39 +1,49 @@
 use crate::message;
 use async_std::{channel, task};
+use infer;
 use log::LevelFilter;
 use mcai_worker_sdk::job::JobResult;
 use mcai_worker_sdk::prelude::JobStatus;
 use mcai_worker_sdk::MessageError;
-use rs_transfer::StreamData;
+use rs_transfer::reader::{CursorReader, ReaderNotification, StreamReader};
 use rs_transfer::{
   secret::Secret,
   writer::{TransferJob, TransferJobAndWriterNotification, WriterNotification},
 };
+use serde::Serialize;
 use stainless_ffmpeg::probe::Probe;
-use std::io::{Error, ErrorKind, Read};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-struct ProbeTransfer {}
+struct ProbeWriter {}
 
-impl TransferJobAndWriterNotification for ProbeTransfer {}
-impl WriterNotification for ProbeTransfer {}
-impl TransferJob for ProbeTransfer {}
+impl TransferJobAndWriterNotification for ProbeWriter {}
+impl WriterNotification for ProbeWriter {}
+impl TransferJob for ProbeWriter {}
+
+struct ProbeReader {}
+
+impl ReaderNotification for ProbeReader {}
+
+#[derive(Serialize)]
+struct MediaInfo {
+  filename: String,
+  probe: Probe,
+  size: u64,
+  mime_type: String,
+}
 
 pub fn upload_metadata(
-  source_path: &str,
   job_result: JobResult,
   probe_info: &str,
   media_probe_secret: Secret,
 ) -> Result<(), MessageError> {
   let (sender, receiver) = channel::bounded(1000);
-  let mut stream = probe_info.as_bytes();
-  let destination_path = format!("{}/{}.json", job_result.get_str_job_id(), source_path);
-
-  let probe_transfer = ProbeTransfer {};
+  let destination_path = format!("job/probe/{}.json", job_result.get_str_job_id());
 
   let reception_task = thread::spawn(move || {
     task::block_on(async {
+      let probe_writer = ProbeWriter {};
       let runtime = tokio::runtime::Runtime::new().unwrap();
       let runtime = Arc::new(Mutex::new(runtime));
       let s3_writer_runtime = runtime.clone();
@@ -41,7 +51,7 @@ pub fn upload_metadata(
       message::start_writer(
         &destination_path,
         media_probe_secret,
-        &probe_transfer,
+        &probe_writer,
         receiver,
         s3_writer_runtime,
       )
@@ -50,34 +60,15 @@ pub fn upload_metadata(
   });
 
   task::block_on(async {
-    let size = stream.len() as u64;
-    sender.send(StreamData::Size(size)).await.unwrap();
-
-    loop {
-      let mut buffer = vec![0; 30 * 1024];
-      let read_size = stream.read(&mut buffer)?;
-
-      if read_size == 0 {
-        sender.send(StreamData::Eof).await.unwrap();
-        return Ok(());
-      }
-
-      if let Err(error) = sender
-        .send(StreamData::Data(buffer[0..read_size].to_vec()))
-        .await
-      {
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!("Could not send read data through channel: {}", error),
-        ));
-      }
-    }
+    let probe_reader = ProbeReader {};
+    let cursor_reader = CursorReader::from(probe_info);
+    cursor_reader.read_stream("", sender, &probe_reader).await
   })
   .map_err(|_e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)
-      .with_message("Error sending fprobe metadata to S3 writer");
+      .with_message("Error reading cursor with probe info");
     MessageError::ProcessingError(result)
   })?;
 
@@ -100,22 +91,35 @@ pub fn upload_metadata(
   Ok(())
 }
 
-pub fn fprobe(source_path: &str) -> Result<String, String> {
-  let mut probe = Probe::new(source_path);
+pub fn fprobe(local_path: &str, filename: &str, filesize: u64) -> Result<String, String> {
+  let mut probe = Probe::new(local_path);
   probe
     .process(LevelFilter::Off)
     .map_err(|error| format!("Unable to process probe: {}", error))?;
 
   match probe.format {
-    Some(_) => serde_json::to_string(&probe)
-      .map_err(|error| format!("Unable to serialize probe result: {:?}", error)),
-    None => Err(format!("No such file: '{}'", source_path)),
+    Some(_) => {
+      let mime_type = infer::get_from_path(local_path)
+        .unwrap_or_default()
+        .map(|mime_type| mime_type.to_string())
+        .unwrap_or("application/octet-stream".to_string());
+
+      let media_info = MediaInfo {
+        probe,
+        filename: filename.to_string(),
+        size: filesize,
+        mime_type,
+      };
+      serde_json::to_string(&media_info)
+        .map_err(|error| format!("Unable to serialize probe result: {:?}", error))
+    }
+    None => Err(format!("No such file: '{}'", local_path)),
   }
 }
 
 #[test]
 pub fn test_probe_empty_path() {
-  let result = fprobe("");
+  let result = fprobe("", "", 0);
   assert!(result.is_err());
   assert_eq!("No such file: ''", &result.unwrap_err());
 }
@@ -124,7 +128,7 @@ pub fn test_probe_empty_path() {
 pub fn test_probe_remote_file() {
   use serde_json::Value;
 
-  let result = fprobe("https://github.com/avTranscoder/avTranscoder-data/raw/master/video/BigBuckBunny/BigBuckBunny_480p_stereo.avi");
+  let result = fprobe("https://github.com/avTranscoder/avTranscoder-data/raw/master/video/BigBuckBunny/BigBuckBunny_480p_stereo.avi", "BigBuckBunny_480p_stereo.avi", 237444416);
   assert!(result.is_ok());
 
   let result: Value = serde_json::from_str(&result.unwrap()).unwrap();

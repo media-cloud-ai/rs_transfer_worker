@@ -19,7 +19,7 @@ pub fn process(
   parameters: TransferWorkerParameters,
   job_result: JobResult,
 ) -> Result<JobResult, MessageError> {
-  let cloned_destination_secret = parameters.destination_secret.unwrap_or_default();
+  let cloned_destination_secret = parameters.destination_secret.clone().unwrap_or_default();
   let cloned_destination_path = parameters.destination_path.clone();
   let cloned_job_result = job_result.clone();
   let cloned_reader_channel = channel.clone();
@@ -27,10 +27,7 @@ pub fn process(
 
   let cloned_source_path = parameters.source_path.clone();
 
-  let source_secret = parameters.source_secret.unwrap_or_default();
-  let source_path = parameters.source_path;
-
-  let upload_type = cloned_destination_secret.clone();
+  let source_secret = parameters.source_secret.clone().unwrap_or_default();
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
 
@@ -63,7 +60,7 @@ pub fn process(
         channel: cloned_reader_channel,
       };
       start_reader(
-        &source_path,
+        &cloned_source_path,
         source_secret,
         sender,
         runtime.clone(),
@@ -81,7 +78,7 @@ pub fn process(
     MessageError::ProcessingError(result)
   })?;
 
-  sending_result.map_err(|e| {
+  let file_size = sending_result.map_err(|e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)
@@ -112,18 +109,31 @@ pub fn process(
   }
 
   #[cfg(feature = "media_probe_and_upload")]
-  if upload_type == Secret::Local && parameters.media_probe_secret.is_some() {
-    {
-      let probe_metadata = probe::fprobe(parameters.destination_path.as_str()).unwrap();
+  {
+    let local_file_name = match (
+      parameters.destination_secret.unwrap_or_default(),
+      parameters.source_secret.unwrap_or_default(),
+    ) {
+      (Secret::Local, _) => Some((
+        parameters.destination_path.clone(),
+        parameters.source_path.clone(),
+      )),
+      (_, Secret::Local) => Some((
+        parameters.source_path.clone(),
+        parameters.destination_path.clone(),
+      )),
+      (_, _) => None,
+    };
+    if let Some((local_file_name, name_of_the_file)) = local_file_name {
+      let probe_metadata = probe::fprobe(&local_file_name, &name_of_the_file, file_size).unwrap();
       probe::upload_metadata(
-        &cloned_source_path,
         job_result.clone(),
         &probe_metadata,
         parameters.media_probe_secret.unwrap(),
       )
       .unwrap();
-    }
-  };
+    };
+  }
 
   Ok(job_result.with_status(JobStatus::Completed))
 }
@@ -170,6 +180,9 @@ pub async fn start_writer(
         .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
+    Secret::Cursor { cursor: _ } => {
+      unimplemented!();
+    }
     Secret::S3 {
       hostname,
       access_key_id,
@@ -212,13 +225,13 @@ pub async fn start_writer(
   }
 }
 
-async fn start_reader(
+pub(crate) async fn start_reader(
   source_path: &str,
   source_secret: Secret,
   sender: channel::Sender<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
-  channel: &TransferReaderNotification,
-) -> Result<(), Error> {
+  channel: &dyn ReaderNotification,
+) -> Result<u64, Error> {
   match source_secret {
     Secret::Ftp {
       hostname,
@@ -289,6 +302,10 @@ async fn start_reader(
         prefix,
         known_host,
       };
+      reader.read_stream(source_path, sender, channel).await
+    }
+    Secret::Cursor { cursor } => {
+      let reader = CursorReader { cursor };
       reader.read_stream(source_path, sender, channel).await
     }
   }

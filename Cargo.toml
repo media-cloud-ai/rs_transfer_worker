@@ -21,17 +21,16 @@ media_probe_and_upload = [
 [dependencies]
 async-std = { version = "1.5.0", features = ["unstable"]}
 criterion = "0.3.5"
-rs_transfer = { version = "1.0.0", path = "rs_transfer" }
+infer = "0.7.0"
 log = "0.4.14"
 mcai_worker_sdk = "1.1.1"
 rs_transfer = { version = "0.4.2", path = "rs_transfer" }
 schemars = "0.8.0"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
+stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", branch = "master", optional = true}
 tokio = "1.7"
 tokio-io = "0.1"
-# Dependencies for media features
-stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", branch = "master", optional = true}
 
 
 [build-dependencies]
