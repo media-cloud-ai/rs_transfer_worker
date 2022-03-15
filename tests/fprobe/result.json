@@ -1,0 +1,65 @@
+{
+    "filename": "BigBuckBunny_480p_stereo.avi",
+    "probe": {
+        "format": {
+            "bit_rate": 2325208,
+            "duration": 30.0,
+            "format_long_name": "AVI (Audio Video Interleaved)",
+            "format_name": "avi",
+            "metadata": {
+                "encoder": "Lavf54.29.104"
+            },
+            "nb_streams": 2,
+            "packet_size": 0,
+            "program_count": 0,
+            "start_time": 0.0,
+            "streams": [
+                {
+                    "bit_rate": 2064556,
+                    "chroma_subsampling": "4:2:0",
+                    "codec_long_name": "MPEG-4 part 2 Microsoft variant version 2",
+                    "codec_name": "msmpeg4v2",
+                    "codec_tag": null,
+                    "display_aspect_ratio": {
+                        "den": 240,
+                        "num": 427
+                    },
+                    "duration": 30.0,
+                    "frame_rate": {
+                        "den": 1,
+                        "num": 24
+                    },
+                    "height": 480,
+                    "index": 0,
+                    "level": null,
+                    "nb_frames": 720,
+                    "pix_fmt": "yuv420p",
+                    "profile": null,
+                    "scanning_type": null,
+                    "start_time": 0.0,
+                    "stream_metadata": {},
+                    "stream_type": "video",
+                    "timecode": null,
+                    "width": 854
+                },
+                {
+                    "bit_rate": 256000,
+                    "bits_per_sample": 0,
+                    "channels": 2,
+                    "codec_long_name": "MP3 (MPEG audio layer 3)",
+                    "codec_name": "mp3",
+                    "codec_tag": null,
+                    "duration": 30.0,
+                    "index": 1,
+                    "sample_fmt": "fltp",
+                    "sample_rate": 48000,
+                    "start_time": 0.0,
+                    "stream_metadata": {},
+                    "stream_type": "audio"
+                }
+            ]
+        }
+    },
+    "size": 237444416,
+    "mime_type": "application/octet-stream"
+}

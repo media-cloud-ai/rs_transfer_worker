@@ -1,6 +1,5 @@
 use crate::message;
 use async_std::{channel, task};
-use infer;
 use log::LevelFilter;
 use mcai_worker_sdk::job::JobResult;
 use mcai_worker_sdk::prelude::JobStatus;
@@ -102,7 +101,7 @@ pub fn fprobe(local_path: &str, filename: &str, filesize: u64) -> Result<String,
       let mime_type = infer::get_from_path(local_path)
         .unwrap_or_default()
         .map(|mime_type| mime_type.to_string())
-        .unwrap_or("application/octet-stream".to_string());
+        .unwrap_or_else(|| "application/octet-stream".to_string());
 
       let media_info = MediaInfo {
         probe,
