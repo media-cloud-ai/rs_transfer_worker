@@ -1,7 +1,10 @@
-use crate::{endpoint::sftp::SftpEndpoint, message::StreamData, reader::StreamReader};
+use crate::{
+  endpoint::sftp::SftpEndpoint,
+  reader::{ReaderNotification, StreamReader},
+  StreamData,
+};
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{debug, info, warn, McaiChannel};
 use ssh_transfer::KnownHost;
 use std::{
   convert::TryFrom,
@@ -47,7 +50,7 @@ impl StreamReader for SftpReader {
     &self,
     path: &str,
     sender: Sender<StreamData>,
-    channel: Option<McaiChannel>,
+    channel: &dyn ReaderNotification,
   ) -> Result<(), Error> {
     let prefix = self.get_prefix().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
@@ -70,11 +73,11 @@ impl StreamReader for SftpReader {
       .get_size()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    debug!("Size of {} remote file: {}", absolute_path, file_size);
+    log::debug!("Size of {} remote file: {}", absolute_path, file_size);
 
     sender.send(StreamData::Size(file_size)).await.unwrap();
 
-    info!("Start reading remote file {}...", absolute_path);
+    log::info!("Start reading remote file {}...", absolute_path);
 
     let buffer_size = if let Ok(buffer_size) = std::env::var("SFTP_READER_BUFFER_SIZE") {
       buffer_size.parse::<u32>().map_err(|_| {
@@ -90,10 +93,8 @@ impl StreamReader for SftpReader {
     let mut total_read_bytes = 0;
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
-          return Ok(());
-        }
+      if channel.is_stopped() {
+        return Ok(());
       }
 
       let mut buffer = vec![0; buffer_size];
@@ -101,7 +102,7 @@ impl StreamReader for SftpReader {
 
       if read_size == 0 {
         sender.send(StreamData::Eof).await.unwrap();
-        debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
+        log::debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
         return Ok(());
       }
 
@@ -111,14 +112,12 @@ impl StreamReader for SftpReader {
         .send(StreamData::Data(buffer[0..read_size].to_vec()))
         .await
       {
-        if let Some(channel) = &channel {
-          if channel.lock().unwrap().is_stopped() && sender.is_closed() {
-            warn!(
-              "Data channel closed: could not send {} read bytes.",
-              read_size
-            );
-            return Ok(());
-          }
+        if channel.is_stopped() && sender.is_closed() {
+          log::warn!(
+            "Data channel closed: could not send {} read bytes.",
+            read_size
+          );
+          return Ok(());
         }
 
         return Err(Error::new(

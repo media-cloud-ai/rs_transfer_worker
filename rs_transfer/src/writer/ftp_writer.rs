@@ -1,8 +1,11 @@
-use crate::{endpoint::ftp::FtpEndpoint, message::StreamData, writer::StreamWriter};
+use crate::{
+  endpoint::ftp::FtpEndpoint,
+  writer::{StreamWriter, WriteJob},
+  StreamData,
+};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
-use mcai_worker_sdk::prelude::{debug, info, publish_job_progression, JobResult, McaiChannel};
 use std::{
   io::{Error, ErrorKind, Write},
   path::{Path, PathBuf},
@@ -73,8 +76,7 @@ impl FtpWriter {
     ftp_stream: &mut FtpStream,
     path: &str,
     receiver: Receiver<StreamData>,
-    channel: Option<McaiChannel>,
-    job_result: JobResult,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let destination_directory = get_directory(path);
     let filename = get_filename(path)?;
@@ -106,23 +108,21 @@ impl FtpWriter {
     let mut min_size = std::usize::MAX;
     let mut max_size = 0;
 
-    debug!(target: &job_result.get_str_job_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
+    log::debug!(target: &job_and_notification.get_str_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
     let mut stream = ftp_stream
       .start_put_file(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
-          return Ok(());
-        }
+      if job_and_notification.is_stopped() {
+        return Ok(());
       }
 
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
         Ok(StreamData::Eof) => {
-          info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
+          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
           stream.flush()?;
           break;
         }
@@ -132,11 +132,12 @@ impl FtpWriter {
 
           received_bytes += data.len();
           if let Some(file_size) = file_size {
-            let percent = received_bytes as f32 / file_size as f32 * 100.0;
+            let percent = (received_bytes as f32 / file_size as f32 * 100.0) as u8;
 
-            if percent as u8 > prev_percent {
-              prev_percent = percent as u8;
-              publish_job_progression(channel.clone(), job_result.get_job_id(), percent as u8)
+            if percent > prev_percent {
+              prev_percent = percent;
+              job_and_notification
+                .progress(percent)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }
@@ -156,23 +157,22 @@ impl StreamWriter for FtpWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    channel: Option<McaiChannel>,
-    job_result: JobResult,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let mut ftp_stream = self
       .get_ftp_stream()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
     self
-      .upload_file(&mut ftp_stream, path, receiver, channel, job_result.clone())
+      .upload_file(&mut ftp_stream, path, receiver, job_and_notification)
       .await?;
 
-    info!(target: &job_result.get_str_job_id(), "ending FTP data connection");
+    log::info!(target: &job_and_notification.get_str_id(), "ending FTP data connection");
     ftp_stream
       .finish_put_file()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    info!(target: &job_result.get_str_job_id(), "closing FTP connection");
+    log::info!(target: &job_and_notification.get_str_id(), "closing FTP connection");
     ftp_stream
       .quit()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;

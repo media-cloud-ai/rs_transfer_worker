@@ -1,14 +1,9 @@
-#[macro_use]
-extern crate serde_derive;
-
-mod endpoint;
 pub mod message;
-mod reader;
-pub mod secret;
-mod writer;
+mod transfer_job;
 
-use crate::secret::Secret;
 use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version};
+use rs_transfer::secret::Secret;
+use serde::Deserialize;
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));

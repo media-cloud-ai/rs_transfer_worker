@@ -10,10 +10,9 @@ pub use http_reader::HttpReader;
 pub use s3_reader::S3Reader;
 pub use sftp_reader::SftpReader;
 
-use crate::message::StreamData;
+use crate::StreamData;
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use mcai_worker_sdk::McaiChannel;
 use std::io::Error;
 
 #[async_trait]
@@ -22,6 +21,10 @@ pub trait StreamReader {
     &self,
     path: &str,
     sender: Sender<StreamData>,
-    channel: Option<McaiChannel>,
+    channel: &dyn ReaderNotification,
   ) -> Result<(), Error>;
+}
+
+pub trait ReaderNotification: Sync + Send {
+  fn is_stopped(&self) -> bool;
 }

@@ -1,8 +1,11 @@
-use crate::{endpoint::ftp::FtpEndpoint, message::StreamData, reader::StreamReader};
+use crate::{
+  endpoint::ftp::FtpEndpoint,
+  reader::{ReaderNotification, StreamReader},
+  StreamData,
+};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use ftp::FtpError;
-use mcai_worker_sdk::prelude::{debug, warn, McaiChannel};
 use std::{
   io::{Error, ErrorKind},
   path::Path,
@@ -45,7 +48,7 @@ impl StreamReader for FtpReader {
     &self,
     path: &str,
     sender: Sender<StreamData>,
-    channel: Option<McaiChannel>,
+    channel: &dyn ReaderNotification,
   ) -> Result<(), Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path = prefix + path;
@@ -89,10 +92,8 @@ impl StreamReader for FtpReader {
       .retr(filename, |reader| {
         let mut total_read_bytes = 0;
         loop {
-          if let Some(channel) = &channel {
-            if channel.lock().unwrap().is_stopped() {
-              return Ok(());
-            }
+          if channel.is_stopped() {
+            return Ok(());
           }
 
           let mut buffer = vec![0; buffer_size];
@@ -104,9 +105,10 @@ impl StreamReader for FtpReader {
             async_std::task::block_on(async {
               sender.send(StreamData::Eof).await.unwrap();
             });
-            debug!(
+            log::debug!(
               "Read {} bytes on {} expected.",
-              total_read_bytes, total_file_size
+              total_read_bytes,
+              total_file_size
             );
             return Ok(());
           }
@@ -118,14 +120,12 @@ impl StreamReader for FtpReader {
               .send(StreamData::Data(buffer[0..read_size].to_vec()))
               .await
             {
-              if let Some(channel) = &channel {
-                if channel.lock().unwrap().is_stopped() && sender.is_closed() {
-                  warn!(
-                    "Data channel closed: could not send {} read bytes.",
-                    read_size
-                  );
-                  return Ok(());
-                }
+              if channel.is_stopped() && sender.is_closed() {
+                log::warn!(
+                  "Data channel closed: could not send {} read bytes.",
+                  read_size
+                );
+                return Ok(());
               }
 
               return Err(FtpError::ConnectionError(Error::new(

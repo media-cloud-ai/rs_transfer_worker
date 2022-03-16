@@ -1,7 +1,10 @@
-use crate::{endpoint::sftp::SftpEndpoint, message::StreamData, writer::StreamWriter};
+use crate::{
+  endpoint::sftp::SftpEndpoint,
+  writer::{StreamWriter, WriteJob},
+  StreamData,
+};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{debug, info, publish_job_progression, JobResult, McaiChannel};
 use ssh_transfer::KnownHost;
 use std::{
   convert::TryFrom,
@@ -42,8 +45,7 @@ impl StreamWriter for SftpWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    channel: Option<McaiChannel>,
-    job_result: JobResult,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
@@ -70,32 +72,31 @@ impl StreamWriter for SftpWriter {
     let mut max_size = 0;
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
-          return Ok(());
-        }
+      if job_and_notification.is_stopped() {
+        return Ok(());
       }
 
       let stream_data = receiver.recv().await;
       match stream_data {
         Ok(StreamData::Size(size)) => file_size = Some(size),
         Ok(StreamData::Eof) => {
-          info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
+          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
           sftp_writer.flush()?;
           break;
         }
         Ok(StreamData::Data(ref data)) => {
           min_size = std::cmp::min(data.len(), min_size);
           max_size = std::cmp::max(data.len(), max_size);
-          debug!("Receive {} bytes to write...", data.len());
+          log::debug!("Receive {} bytes to write...", data.len());
 
           received_bytes += data.len();
           if let Some(file_size) = file_size {
-            let percent = received_bytes as f32 / file_size as f32 * 100.0;
+            let percent = (received_bytes as f32 / file_size as f32 * 100.0) as u8;
 
-            if percent as u8 > prev_percent {
-              prev_percent = percent as u8;
-              publish_job_progression(channel.clone(), job_result.get_job_id(), percent as u8)
+            if percent > prev_percent {
+              prev_percent = percent;
+              job_and_notification
+                .progress(percent)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }

@@ -1,7 +1,10 @@
-use crate::{endpoint::s3::S3Endpoint, message::StreamData, writer::StreamWriter};
+use crate::{
+  endpoint::s3::S3Endpoint,
+  writer::{StreamWriter, WriteJob},
+  StreamData,
+};
 use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
-use mcai_worker_sdk::prelude::{info, publish_job_progression, JobResult, McaiChannel};
 use rusoto_s3::{
   CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
   CreateMultipartUploadRequest, UploadPartRequest, S3,
@@ -138,8 +141,7 @@ impl StreamWriter for S3Writer {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    channel: Option<McaiChannel>,
-    job_result: JobResult,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let upload_identifier = self.start_multi_part_s3_upload(path).await?;
 
@@ -170,10 +172,8 @@ impl StreamWriter for S3Writer {
     let (tx, rx) = mpsc::channel();
 
     loop {
-      if let Some(channel) = &channel {
-        if channel.lock().unwrap().is_stopped() {
-          return Ok(());
-        }
+      if job_and_notification.is_stopped() {
+        return Ok(());
       }
 
       let mut stream_data = receiver.recv().await;
@@ -209,7 +209,7 @@ impl StreamWriter for S3Writer {
             .complete_s3_upload(path, &upload_identifier, complete_parts)
             .await?;
 
-          info!(target: &job_result.get_str_job_id(), "packet size: min = {}, max= {}", min_size, max_size);
+          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
           return Ok(());
         }
         Ok(StreamData::Data(ref mut data)) => {
@@ -218,11 +218,12 @@ impl StreamWriter for S3Writer {
 
           received_bytes += data.len();
           if let Some(file_size) = file_size {
-            let percent = received_bytes as f32 / file_size as f32 * 100.0;
+            let percent = (received_bytes as f32 / file_size as f32 * 100.0) as u8;
 
-            if percent as u8 > prev_percent {
-              prev_percent = percent as u8;
-              publish_job_progression(channel.clone(), job_result.get_job_id(), percent as u8)
+            if percent > prev_percent {
+              prev_percent = percent;
+              job_and_notification
+                .progress(percent)
                 .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))?;
             }
           }
