@@ -1,11 +1,15 @@
-use crate::endpoint::sftp::SftpEndpoint;
-use crate::writer::{StreamWriter, TransferJobAndWriterNotification};
-use crate::StreamData;
+use crate::{
+  endpoint::sftp::SftpEndpoint,
+  writer::{StreamWriter, WriteJob},
+  StreamData,
+};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ssh_transfer::KnownHost;
-use std::convert::TryFrom;
-use std::io::{Error, ErrorKind, Write};
+use std::{
+  convert::TryFrom,
+  io::{Error, ErrorKind, Write},
+};
 
 #[derive(Clone, Debug)]
 pub struct SftpWriter {
@@ -41,7 +45,7 @@ impl StreamWriter for SftpWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");

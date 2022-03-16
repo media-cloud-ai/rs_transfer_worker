@@ -1,5 +1,7 @@
-use crate::transfer_job::{TransferJobAndNotification, TransferReaderNotification};
-use crate::TransferWorkerParameters;
+use crate::{
+  transfer_job::{TransferReaderNotification, TransferWriterNotification},
+  TransferWorkerParameters,
+};
 use async_std::{channel, task};
 use mcai_worker_sdk::prelude::{info, JobResult, JobStatus, McaiChannel, MessageError};
 use rs_transfer::{reader::*, secret::Secret, writer::*, StreamData};
@@ -33,7 +35,7 @@ pub fn process(
   let (sender, receiver) = channel::bounded(1000);
   let reception_task = thread::spawn(move || {
     task::block_on(async {
-      let job_and_notification = TransferJobAndNotification {
+      let job_and_notification = TransferWriterNotification {
         job_result: cloned_job_result,
         channel: cloned_writer_channel,
       };
@@ -109,7 +111,7 @@ pub fn process(
 async fn start_writer(
   cloned_destination_path: &str,
   cloned_destination_secret: Secret,
-  job_and_notification: &TransferJobAndNotification,
+  job_and_notification: &TransferWriterNotification,
   receiver: channel::Receiver<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {

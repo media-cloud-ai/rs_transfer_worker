@@ -1,16 +1,17 @@
-use crate::endpoint::s3::S3Endpoint;
-use crate::writer::TransferJobAndWriterNotification;
-use crate::{writer::StreamWriter, StreamData};
+use crate::{
+  endpoint::s3::S3Endpoint,
+  writer::{StreamWriter, WriteJob},
+  StreamData,
+};
 use async_std::{channel::Receiver, task};
 use async_trait::async_trait;
 use rusoto_s3::{
   CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
   CreateMultipartUploadRequest, UploadPartRequest, S3,
 };
-use std::sync::{Arc, Mutex};
 use std::{
   io::{Error, ErrorKind},
-  sync::mpsc,
+  sync::{mpsc, Arc, Mutex},
   thread,
   time::Duration,
 };
@@ -140,7 +141,7 @@ impl StreamWriter for S3Writer {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let upload_identifier = self.start_multi_part_s3_upload(path).await?;
 

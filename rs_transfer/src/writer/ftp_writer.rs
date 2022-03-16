@@ -1,11 +1,15 @@
-use crate::endpoint::ftp::FtpEndpoint;
-use crate::writer::{StreamWriter, TransferJobAndWriterNotification};
-use crate::StreamData;
+use crate::{
+  endpoint::ftp::FtpEndpoint,
+  writer::{StreamWriter, WriteJob},
+  StreamData,
+};
 use async_std::channel::Receiver;
 use async_trait::async_trait;
 use ftp::FtpStream;
-use std::io::{Error, ErrorKind, Write};
-use std::path::{Path, PathBuf};
+use std::{
+  io::{Error, ErrorKind, Write},
+  path::{Path, PathBuf},
+};
 
 #[derive(Clone, Debug)]
 pub struct FtpWriter {
@@ -72,7 +76,7 @@ impl FtpWriter {
     ftp_stream: &mut FtpStream,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let destination_directory = get_directory(path);
     let filename = get_filename(path)?;
@@ -153,7 +157,7 @@ impl StreamWriter for FtpWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error> {
     let mut ftp_stream = self
       .get_ftp_stream()

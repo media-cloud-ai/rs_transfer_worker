@@ -18,17 +18,12 @@ pub trait StreamWriter {
     &self,
     path: &str,
     receiver: Receiver<StreamData>,
-    job_and_notification: &dyn TransferJobAndWriterNotification,
+    job_and_notification: &dyn WriteJob,
   ) -> Result<(), Error>;
 }
 
-pub trait TransferJobAndWriterNotification: WriterNotification + TransferJob {}
-
-pub trait WriterNotification: Send + Sync {
+pub trait WriteJob: Send + Sync {
+  fn get_str_id(&self) -> String;
   fn progress(&self, progress: u8) -> Result<(), Error>;
   fn is_stopped(&self) -> bool;
-}
-
-pub trait TransferJob: Send + Sync {
-  fn get_str_id(&self) -> String;
 }
