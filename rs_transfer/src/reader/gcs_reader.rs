@@ -2,12 +2,12 @@ use crate::{message::StreamData, reader::StreamReader};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use cloud_storage::Client;
-use futures::StreamExt;
-use mcai_worker_sdk::prelude::warn;
+use futures_util::StreamExt;
 use mcai_worker_sdk::McaiChannel;
 use std::io::{Error, ErrorKind};
+use mcai_worker_sdk::prelude::warn;
 
-const BUFFER_SIZE: usize = 1024*1024;
+const BUFFER_SIZE: usize = 1024 * 1024;
 
 pub struct GcsReader {
   pub bucket: String,
@@ -31,28 +31,20 @@ impl StreamReader for GcsReader {
       .await
       .unwrap();
 
-    let mut stream = client
+    let stream = client
       .object()
       .download_streamed(&self.bucket, path)
       .await
       .unwrap();
 
-    let mut buffer = vec![];
+    let mut chunks = stream.chunks(BUFFER_SIZE);
 
-    while let Some(byte) = stream.next().await {
-      if buffer.len() == BUFFER_SIZE {
-        send_buffer(&sender, &channel, buffer.clone()).await?;
-        buffer.clear();
-      }
-      let byte= byte.map_err(|error| {
-        Error::new(
-          ErrorKind::InvalidData,
-          format!("Could not read byte: {:?}", error),
-        )
+    while let Some(chunk) = chunks.next().await {
+      let vector = chunk.into_iter().collect::<Result<Vec<u8>, cloud_storage::Error>>().map_err(|error| {
+        Error::new(ErrorKind::Other, format!("Cloud Storage Error : {}", error))
       })?;
-      buffer.push(byte);
+      send_buffer(&sender, &channel, vector).await?;
     }
-    send_buffer(&sender, &channel, buffer).await?;
     sender.send(StreamData::Eof).await.map_err(|error| {
       Error::new(
         ErrorKind::Other,
@@ -71,7 +63,7 @@ async fn send_buffer(
   if let Err(error) = sender.send(StreamData::Data(buffer.clone())).await {
     if let Some(channel) = &channel {
       if channel.lock().unwrap().is_stopped() && sender.is_closed() {
-        warn!("Data channel closed: could not send {} read bytes.", 42);
+        warn!("Data channel closed: could not send read bytes.");
         return Ok(());
       }
     }
