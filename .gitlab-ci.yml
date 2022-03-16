@@ -11,15 +11,15 @@ include:
 
 build:test:
   stage: test
-  script: cd rs_transfer && cargo test
+  script: cargo test && cd rs_transfer && cargo test
 
 build:format:
   stage: test
-  script: cargo fmt -- --check
+  script: cargo fmt -- --check && cd rs_transfer && cargo fmt -- --check
 
 build:coverage:
   stage: test
-  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
+  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features && cd rs_transfer && cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
   after_script:
     - apt-get install -y curl
     - bash <(curl -s https://codecov.io/bash)
