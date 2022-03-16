@@ -1,6 +1,6 @@
 [package]
 name = "rs_transfer"
-version = "0.4.2"
+version = "1.0.0"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>",
