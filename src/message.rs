@@ -112,7 +112,6 @@ pub fn process(
   {
     if parameters.probe_secret.is_none() {
       let result = job_result
-        .clone()
         .with_status(JobStatus::Error)
         .with_message("Missing probe_secret");
       return Err(MessageError::ProcessingError(result));

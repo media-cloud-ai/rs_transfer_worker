@@ -94,17 +94,9 @@ pub fn media_probe(local_path: &str, filename: &str, filesize: u64) -> Result<St
     .map(|mime_type| mime_type.to_string())
     .unwrap_or_else(|| "application/octet-stream".to_string());
 
-  let media_probe = if mime_type == "application/octet-stream" {
-    let mut probe = Probe::new(local_path);
-
-    probe
-      .process(LevelFilter::Off)
-      .map_err(|error| format!("Unable to process probe: {}", error))?;
-
-    Some(probe)
-  } else {
-    None
-  };
+  let media_probe = (mime_type != "application/octet-stream")
+    .then(|| probe_with_ffmpeg(local_path))
+    .flatten();
 
   let file_info = FileInfo {
     media_probe,
@@ -115,6 +107,12 @@ pub fn media_probe(local_path: &str, filename: &str, filesize: u64) -> Result<St
 
   serde_json::to_string(&file_info)
     .map_err(|error| format!("Unable to serialize probe result: {:?}", error))
+}
+
+fn probe_with_ffmpeg(path: &str) -> Option<Probe> {
+  let mut probe = Probe::new(path);
+
+  probe.process(LevelFilter::Off).is_ok().then(|| probe)
 }
 
 #[test]
@@ -131,10 +129,12 @@ pub fn test_probe_empty_path() {
 
 #[test]
 pub fn test_probe_remote_file() {
-  let result = media_probe("https://github.com/avTranscoder/avTranscoder-data/raw/master/video/BigBuckBunny/BigBuckBunny_480p_stereo.avi", "BigBuckBunny_480p_stereo.avi", 237444416);
-  assert!(result.is_ok());
+  let result = probe_with_ffmpeg("https://github.com/avTranscoder/avTranscoder-data/raw/master/video/BigBuckBunny/BigBuckBunny_480p_stereo.avi").unwrap();
+  assert!(result.format.is_some());
 
-  let result: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
+  let result_string = serde_json::to_string(&result.format.unwrap()).unwrap();
+
+  let result: serde_json::Value = serde_json::from_str(&result_string).unwrap();
 
   let expected = std::fs::read_to_string("./tests/probe/result.json").unwrap();
   let expected: serde_json::Value = serde_json::from_str(&expected).unwrap();
