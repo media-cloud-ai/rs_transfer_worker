@@ -1,6 +1,6 @@
 {
     "filename": "BigBuckBunny_480p_stereo.avi",
-    "probe": {
+    "media_probe": {
         "format": {
             "bit_rate": 2325208,
             "duration": 30.0,

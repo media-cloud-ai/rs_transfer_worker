@@ -4,10 +4,10 @@ use crate::{
 };
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use std::io::{Cursor, Error, ErrorKind, Read, Seek, SeekFrom};
+use std::io::{Cursor, Error, ErrorKind, Read};
 
 pub struct CursorReader {
-  pub cursor: Cursor<Vec<u8>>,
+  content: Vec<u8>,
 }
 
 impl From<&str> for CursorReader {
@@ -18,9 +18,13 @@ impl From<&str> for CursorReader {
 
 impl From<&[u8]> for CursorReader {
   fn from(content: &[u8]) -> Self {
-    CursorReader {
-      cursor: Cursor::new(content.to_vec()),
-    }
+    Self::from(content.to_vec())
+  }
+}
+
+impl From<Vec<u8>> for CursorReader {
+  fn from(content: Vec<u8>) -> Self {
+    CursorReader { content }
   }
 }
 
@@ -32,10 +36,11 @@ impl StreamReader for CursorReader {
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
   ) -> Result<u64, Error> {
-    let mut stream = self.cursor.clone();
-    let stream_length = stream.seek(SeekFrom::End(0))?;
-    stream.seek(SeekFrom::Start(0))?;
+    let mut stream = Cursor::new(self.content.clone());
+    let stream_length = self.content.len() as u64;
+
     sender.send(StreamData::Size(stream_length)).await.unwrap();
+
     loop {
       if channel.is_stopped() {
         return Ok(stream_length);

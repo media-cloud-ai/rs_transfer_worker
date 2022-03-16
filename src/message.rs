@@ -110,6 +110,14 @@ pub fn process(
 
   #[cfg(feature = "media_probe_and_upload")]
   {
+    if parameters.probe_secret.is_none() {
+      let result = job_result
+        .clone()
+        .with_status(JobStatus::Error)
+        .with_message("Missing probe_secret");
+      return Err(MessageError::ProcessingError(result));
+    }
+
     let local_file_name = match (
       parameters.destination_secret.unwrap_or_default(),
       parameters.source_secret.unwrap_or_default(),
@@ -124,12 +132,14 @@ pub fn process(
       )),
       (_, _) => None,
     };
+
     if let Some((local_file_name, name_of_the_file)) = local_file_name {
-      let probe_metadata = probe::fprobe(&local_file_name, &name_of_the_file, file_size).unwrap();
+      let probe_metadata =
+        probe::media_probe(&local_file_name, &name_of_the_file, file_size).unwrap();
       probe::upload_metadata(
         job_result.clone(),
         &probe_metadata,
-        parameters.media_probe_secret.unwrap(),
+        parameters.probe_secret.unwrap(),
       )
       .unwrap();
     };
@@ -180,7 +190,7 @@ pub async fn start_writer(
         .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Cursor { cursor: _ } => {
+    Secret::Cursor { content: _ } => {
       unimplemented!();
     }
     Secret::S3 {
@@ -304,8 +314,8 @@ pub(crate) async fn start_reader(
       };
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Cursor { cursor } => {
-      let reader = CursorReader { cursor };
+    Secret::Cursor { content } => {
+      let reader = CursorReader::from(content);
       reader.read_stream(source_path, sender, channel).await
     }
   }

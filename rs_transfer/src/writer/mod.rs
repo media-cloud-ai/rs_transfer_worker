@@ -27,3 +27,9 @@ pub trait WriteJob: Send + Sync {
   fn progress(&self, progress: u8) -> Result<(), Error>;
   fn is_stopped(&self) -> bool;
 }
+
+pub struct SimpleWriter {}
+
+impl TransferJobAndWriterNotification for SimpleWriter {}
+impl WriterNotification for SimpleWriter {}
+impl TransferJob for SimpleWriter {}

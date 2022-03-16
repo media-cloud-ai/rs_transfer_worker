@@ -32,3 +32,7 @@ pub trait ReaderNotification: Sync + Send {
     false
   }
 }
+
+pub struct SimpleReader {}
+
+impl ReaderNotification for SimpleReader {}

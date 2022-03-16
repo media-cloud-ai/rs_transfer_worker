@@ -1,6 +1,5 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -37,7 +36,7 @@ pub enum Secret {
   },
   Cursor {
     #[serde(skip)]
-    cursor: Cursor<Vec<u8>>, // Serialize not implemented
+    content: Vec<u8>,
   },
 }
 
@@ -106,9 +105,7 @@ pub fn test_secret_cursor() {
   let json_str = r#"{
     "type": "cursor"
   }"#;
-  let expected = Secret::Cursor {
-    cursor: Default::default(),
-  };
+  let expected = Secret::Cursor { content: vec![] };
   let secret: Secret = serde_json::from_str(json_str).unwrap();
   assert_eq!(secret, expected);
 }
