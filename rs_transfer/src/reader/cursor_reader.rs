@@ -28,6 +28,14 @@ impl From<Vec<u8>> for CursorReader {
   }
 }
 
+impl From<Option<Vec<u8>>> for CursorReader {
+  fn from(content: Option<Vec<u8>>) -> Self {
+    CursorReader {
+      content: content.unwrap_or_default(),
+    }
+  }
+}
+
 #[async_trait]
 impl StreamReader for CursorReader {
   async fn read_stream(
@@ -36,6 +44,7 @@ impl StreamReader for CursorReader {
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
   ) -> Result<u64, Error> {
+    let mut total_read_bytes: u64 = 0;
     let mut stream = Cursor::new(self.content.clone());
     let stream_length = self.content.len() as u64;
 
@@ -43,15 +52,15 @@ impl StreamReader for CursorReader {
 
     loop {
       if channel.is_stopped() {
-        return Ok(stream_length);
+        return Ok(total_read_bytes);
       }
 
       let mut buffer = vec![0; 30 * 1024];
       let read_size = stream.read(&mut buffer)?;
-
+      total_read_bytes += read_size as u64;
       if read_size == 0 {
         sender.send(StreamData::Eof).await.unwrap();
-        return Ok(stream_length);
+        return Ok(total_read_bytes);
       }
 
       if let Err(error) = sender
@@ -63,7 +72,7 @@ impl StreamReader for CursorReader {
             "Data channel closed: could not send {} read bytes.",
             read_size
           );
-          return Ok(stream_length);
+          return Ok(total_read_bytes);
         }
 
         return Err(Error::new(

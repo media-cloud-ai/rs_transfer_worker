@@ -45,7 +45,7 @@ impl S3Reader {
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
   ) -> Result<u64, Error> {
-    let mut file_size: u64 = 0;
+    let mut total_read_bytes: u64 = 0;
     let head_request = HeadObjectRequest {
       bucket: bucket.to_string(),
       key: path.to_string(),
@@ -68,8 +68,7 @@ impl S3Reader {
     let head = handler.await??;
 
     if let Some(size) = head.content_length {
-      file_size = size as u64;
-      sender.send(StreamData::Size(file_size)).await.unwrap();
+      sender.send(StreamData::Size(size as u64)).await.unwrap();
     }
 
     let handler = self.runtime.clone().lock().unwrap().spawn(async move {
@@ -99,11 +98,12 @@ impl S3Reader {
 
     loop {
       if channel.is_stopped() {
-        return Ok(file_size);
+        return Ok(total_read_bytes);
       }
 
       let mut buffer: Vec<u8> = vec![0; buffer_size];
       let size = reader.read(&mut buffer)?;
+      total_read_bytes += size as u64;
       if size == 0 {
         break;
       }
@@ -114,7 +114,7 @@ impl S3Reader {
       {
         if channel.is_stopped() && sender.is_closed() {
           log::warn!("Data channel closed: could not send {} read bytes.", size);
-          return Ok(file_size);
+          return Ok(total_read_bytes);
         }
 
         return Err(Error::new(
@@ -124,7 +124,7 @@ impl S3Reader {
       }
     }
     sender.send(StreamData::Eof).await.unwrap();
-    Ok(file_size)
+    Ok(total_read_bytes)
   }
 }
 
