@@ -51,7 +51,7 @@ impl StreamReader for SftpReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error> {
+  ) -> Result<u64, Error> {
     let prefix = self.get_prefix().unwrap_or_else(|| "/".to_string());
     let absolute_path: String = vec![prefix, path.to_string()].join("/");
 
@@ -94,7 +94,7 @@ impl StreamReader for SftpReader {
 
     loop {
       if channel.is_stopped() {
-        return Ok(());
+        return Ok(total_read_bytes as u64);
       }
 
       let mut buffer = vec![0; buffer_size];
@@ -103,7 +103,7 @@ impl StreamReader for SftpReader {
       if read_size == 0 {
         sender.send(StreamData::Eof).await.unwrap();
         log::debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
-        return Ok(());
+        return Ok(total_read_bytes as u64);
       }
 
       total_read_bytes += read_size;
@@ -117,7 +117,7 @@ impl StreamReader for SftpReader {
             "Data channel closed: could not send {} read bytes.",
             read_size
           );
-          return Ok(());
+          return Ok(total_read_bytes as u64);
         }
 
         return Err(Error::new(

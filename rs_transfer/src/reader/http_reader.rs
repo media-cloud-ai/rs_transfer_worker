@@ -23,7 +23,8 @@ impl StreamReader for HttpReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error> {
+  ) -> Result<u64, Error> {
+    let mut total_read_bytes: u64 = 0;
     Runtime::new()
       .expect("Failed to create Tokio runtime")
       .block_on(async {
@@ -70,7 +71,7 @@ impl StreamReader for HttpReader {
 
         let bytes = response.bytes();
         let data_bytes = bytes.await.unwrap();
-
+        total_read_bytes += data_bytes.len() as u64;
         if let Err(error) = sender.send(StreamData::Data(data_bytes.to_vec())).await {
           if channel.is_stopped() && sender.is_closed() {
             log::warn!(
@@ -88,6 +89,7 @@ impl StreamReader for HttpReader {
 
         sender.send(StreamData::Eof).await.unwrap();
         Ok(())
-      })
+      })?;
+    Ok(total_read_bytes)
   }
 }

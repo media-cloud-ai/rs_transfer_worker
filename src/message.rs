@@ -1,3 +1,5 @@
+#[cfg(feature = "media_probe_and_upload")]
+use crate::probe;
 use crate::{
   transfer_job::{TransferReaderNotification, TransferWriterNotification},
   TransferWorkerParameters,
@@ -17,14 +19,15 @@ pub fn process(
   parameters: TransferWorkerParameters,
   job_result: JobResult,
 ) -> Result<JobResult, MessageError> {
-  let cloned_destination_secret = parameters.destination_secret.unwrap_or_default();
+  let cloned_destination_secret = parameters.destination_secret.clone().unwrap_or_default();
   let cloned_destination_path = parameters.destination_path.clone();
   let cloned_job_result = job_result.clone();
   let cloned_reader_channel = channel.clone();
   let cloned_writer_channel = channel.clone();
 
-  let source_secret = parameters.source_secret.unwrap_or_default();
-  let source_path = parameters.source_path;
+  let cloned_source_path = parameters.source_path.clone();
+
+  let source_secret = parameters.source_secret.clone().unwrap_or_default();
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
 
@@ -57,7 +60,7 @@ pub fn process(
         channel: cloned_reader_channel,
       };
       start_reader(
-        &source_path,
+        &cloned_source_path,
         source_secret,
         sender,
         runtime.clone(),
@@ -75,7 +78,7 @@ pub fn process(
     MessageError::ProcessingError(result)
   })?;
 
-  sending_result.map_err(|e| {
+  let file_size = sending_result.map_err(|e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)
@@ -105,13 +108,50 @@ pub fn process(
     }
   }
 
+  #[cfg(feature = "media_probe_and_upload")]
+  {
+    if parameters.probe_secret.is_none() {
+      let result = job_result
+        .with_status(JobStatus::Error)
+        .with_message("Missing probe_secret");
+      return Err(MessageError::ProcessingError(result));
+    }
+
+    let local_file_name = match (
+      parameters.source_secret.unwrap_or_default(),
+      parameters.destination_secret.unwrap_or_default(),
+    ) {
+      (Secret::Local, _) => Some((
+        parameters.source_path.clone(),
+        parameters.destination_path.clone(),
+      )),
+      (_, Secret::Local) => Some((
+        parameters.destination_path.clone(),
+        parameters.source_path.clone(),
+      )),
+      (_, _) => None,
+    };
+
+    if let Some((local_file_name, name_of_the_file)) = local_file_name {
+      let probe_metadata =
+        probe::media_probe(&local_file_name, &name_of_the_file, file_size).unwrap();
+      probe::upload_metadata(
+        job_result.clone(),
+        &probe_metadata,
+        parameters.probe_secret.unwrap(),
+        parameters.probe_path,
+      )
+      .unwrap();
+    };
+  }
+
   Ok(job_result.with_status(JobStatus::Completed))
 }
 
-async fn start_writer(
+pub async fn start_writer(
   cloned_destination_path: &str,
   cloned_destination_secret: Secret,
-  job_and_notification: &TransferWriterNotification,
+  job_and_notification: &dyn WriteJob,
   receiver: channel::Receiver<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
@@ -149,6 +189,9 @@ async fn start_writer(
       writer
         .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
+    }
+    Secret::Cursor { content: _ } => {
+      unimplemented!();
     }
     Secret::S3 {
       hostname,
@@ -192,13 +235,13 @@ async fn start_writer(
   }
 }
 
-async fn start_reader(
+pub(crate) async fn start_reader(
   source_path: &str,
   source_secret: Secret,
   sender: channel::Sender<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
-  channel: &TransferReaderNotification,
-) -> Result<(), Error> {
+  channel: &dyn ReaderNotification,
+) -> Result<u64, Error> {
   match source_secret {
     Secret::Ftp {
       hostname,
@@ -269,6 +312,10 @@ async fn start_reader(
         prefix,
         known_host,
       };
+      reader.read_stream(source_path, sender, channel).await
+    }
+    Secret::Cursor { content } => {
+      let reader = CursorReader::from(content);
       reader.read_stream(source_path, sender, channel).await
     }
   }

@@ -1,4 +1,6 @@
 pub mod message;
+#[cfg(feature = "media_probe_and_upload")]
+mod probe;
 mod transfer_job;
 
 use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version};
@@ -18,6 +20,8 @@ pub struct TransferWorkerParameters {
   source_secret: Option<Secret>,
   destination_path: String,
   destination_secret: Option<Secret>,
+  probe_secret: Option<Secret>,
+  probe_path: Option<String>,
 }
 
 impl McaiWorker<TransferWorkerParameters> for TransferEvent {

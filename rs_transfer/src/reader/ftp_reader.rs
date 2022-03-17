@@ -49,7 +49,7 @@ impl StreamReader for FtpReader {
     path: &str,
     sender: Sender<StreamData>,
     channel: &dyn ReaderNotification,
-  ) -> Result<(), Error> {
+  ) -> Result<u64, Error> {
     let prefix = self.prefix.clone().unwrap_or_else(|| "/".to_string());
     let absolute_path = prefix + path;
 
@@ -88,12 +88,12 @@ impl StreamReader for FtpReader {
       1024 * 1024
     };
 
-    ftp_stream
-      .retr(filename, |reader| {
-        let mut total_read_bytes = 0;
+    let total_read_bytes = ftp_stream
+      .retr(filename, |reader| -> Result<u64, FtpError> {
+        let mut total_read_bytes: u64 = 0;
         loop {
           if channel.is_stopped() {
-            return Ok(());
+            return Ok(total_read_bytes);
           }
 
           let mut buffer = vec![0; buffer_size];
@@ -110,10 +110,10 @@ impl StreamReader for FtpReader {
               total_read_bytes,
               total_file_size
             );
-            return Ok(());
+            return Ok(total_read_bytes);
           }
 
-          total_read_bytes += read_size;
+          total_read_bytes += read_size as u64;
 
           async_std::task::block_on(async {
             if let Err(error) = sender
@@ -139,7 +139,7 @@ impl StreamReader for FtpReader {
       })
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    Ok(())
+    Ok(total_read_bytes)
   }
 }
 

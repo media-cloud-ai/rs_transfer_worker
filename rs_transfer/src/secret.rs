@@ -2,9 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Secret {
-  #[serde(rename = "ftp")]
   Ftp {
     hostname: String,
     port: Option<u16>,
@@ -13,16 +12,13 @@ pub enum Secret {
     password: Option<String>,
     prefix: Option<String>,
   },
-  #[serde(rename = "http")]
   Http {
     endpoint: Option<String>,
     method: Option<String>,
     headers: Option<String>,
     body: Option<String>,
   },
-  #[serde(rename = "local")]
   Local,
-  #[serde(rename = "s3")]
   S3 {
     hostname: Option<String>,
     access_key_id: String,
@@ -30,7 +26,6 @@ pub enum Secret {
     region: Option<String>,
     bucket: String,
   },
-  #[serde(rename = "sftp")]
   Sftp {
     hostname: String,
     port: Option<u16>,
@@ -38,6 +33,9 @@ pub enum Secret {
     password: Option<String>,
     prefix: Option<String>,
     known_host: Option<String>,
+  },
+  Cursor {
+    content: Option<Vec<u8>>,
   },
 }
 
@@ -97,6 +95,16 @@ pub fn test_secret_local() {
     "type": "local"
   }"#;
   let expected = Secret::Local {};
+  let secret: Secret = serde_json::from_str(json_str).unwrap();
+  assert_eq!(secret, expected);
+}
+
+#[test]
+pub fn test_secret_cursor() {
+  let json_str = r#"{
+    "type": "cursor"
+  }"#;
+  let expected = Secret::Cursor { content: None };
   let secret: Secret = serde_json::from_str(json_str).unwrap();
   assert_eq!(secret, expected);
 }
