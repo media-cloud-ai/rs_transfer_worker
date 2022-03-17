@@ -1,6 +1,5 @@
 mod file_writer;
 mod ftp_writer;
-mod gcs_writter;
 mod s3_writer;
 mod sftp_writer;
 
