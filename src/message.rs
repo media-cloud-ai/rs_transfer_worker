@@ -27,7 +27,10 @@ pub fn process(
 
   let cloned_source_path = parameters.source_path.clone();
 
+  #[cfg(feature = "media_probe_and_upload")]
   let source_secret = parameters.source_secret.clone().unwrap_or_default();
+  #[cfg(not(feature = "media_probe_and_upload"))]
+  let source_secret = parameters.source_secret.unwrap_or_default();
 
   info!(target: &job_result.get_str_job_id(), "Source: {:?} --> Destination: {:?}", source_secret, cloned_destination_secret);
 
@@ -78,7 +81,17 @@ pub fn process(
     MessageError::ProcessingError(result)
   })?;
 
+  #[cfg(feature = "media_probe_and_upload")]
   let file_size = sending_result.map_err(|e| {
+    let result = job_result
+      .clone()
+      .with_status(JobStatus::Error)
+      .with_message(&e.to_string());
+    MessageError::ProcessingError(result)
+  })?;
+
+  #[cfg(not(feature = "media_probe_and_upload"))]
+  sending_result.map_err(|e| {
     let result = job_result
       .clone()
       .with_status(JobStatus::Error)
@@ -176,7 +189,7 @@ pub async fn start_writer(
         .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::GCS {
+    Secret::Gcs {
       credential: _,
       bucket: _,
     } => {
@@ -267,7 +280,7 @@ pub(crate) async fn start_reader(
       };
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::GCS { credential, bucket } => {
+    Secret::Gcs { credential, bucket } => {
       let service_account = serde_json::to_string(&credential).unwrap();
       std::env::set_var("SERVICE_ACCOUNT_JSON", service_account);
       let reader = GcsReader { bucket };

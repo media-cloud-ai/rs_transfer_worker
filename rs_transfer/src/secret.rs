@@ -12,7 +12,7 @@ pub enum Secret {
     password: Option<String>,
     prefix: Option<String>,
   },
-  GCS {
+  Gcs {
     credential: GcsCredential,
     bucket: String,
   },
