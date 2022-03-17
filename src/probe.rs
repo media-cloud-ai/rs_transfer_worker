@@ -1,9 +1,7 @@
 use crate::message;
 use async_std::{channel, task};
 use log::LevelFilter;
-use mcai_worker_sdk::job::JobResult;
-use mcai_worker_sdk::prelude::JobStatus;
-use mcai_worker_sdk::MessageError;
+use mcai_worker_sdk::{job::JobResult, prelude::JobStatus, MessageError};
 use rs_transfer::{
   reader::{CursorReader, SimpleReader, StreamReader},
   secret::Secret,
@@ -11,8 +9,10 @@ use rs_transfer::{
 };
 use serde::Serialize;
 use stainless_ffmpeg::probe::Probe;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{
+  sync::{Arc, Mutex},
+  thread,
+};
 
 #[derive(Serialize)]
 struct FileInfo {
@@ -34,9 +34,14 @@ pub fn upload_metadata(
   job_result: JobResult,
   probe_info: &str,
   probe_secret: Secret,
+  probe_path: Option<String>,
 ) -> Result<(), MessageError> {
   let (sender, receiver) = channel::bounded(1000);
-  let destination_path = format!("job/probe/{}.json", job_result.get_str_job_id());
+  let destination_path = format!(
+    "{}{}.json",
+    probe_path.unwrap_or_else(|| "job/probe/".to_string()),
+    job_result.get_str_job_id()
+  );
 
   let reception_task = thread::spawn(move || {
     task::block_on(async {

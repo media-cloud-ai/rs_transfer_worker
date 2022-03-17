@@ -35,8 +35,7 @@ pub enum Secret {
     known_host: Option<String>,
   },
   Cursor {
-    #[serde(skip)]
-    content: Vec<u8>,
+    content: Option<Vec<u8>>,
   },
 }
 
@@ -105,7 +104,7 @@ pub fn test_secret_cursor() {
   let json_str = r#"{
     "type": "cursor"
   }"#;
-  let expected = Secret::Cursor { content: vec![] };
+  let expected = Secret::Cursor { content: None };
   let secret: Secret = serde_json::from_str(json_str).unwrap();
   assert_eq!(secret, expected);
 }

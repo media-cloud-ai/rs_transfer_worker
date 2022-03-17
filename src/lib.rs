@@ -21,6 +21,7 @@ pub struct TransferWorkerParameters {
   destination_path: String,
   destination_secret: Option<Secret>,
   probe_secret: Option<Secret>,
+  probe_path: Option<String>,
 }
 
 impl McaiWorker<TransferWorkerParameters> for TransferEvent {

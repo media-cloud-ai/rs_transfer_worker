@@ -23,13 +23,19 @@ pub trait StreamWriter {
 }
 
 pub trait WriteJob: Send + Sync {
-  fn get_str_id(&self) -> String;
-  fn progress(&self, progress: u8) -> Result<(), Error>;
-  fn is_stopped(&self) -> bool;
+  fn get_str_id(&self) -> String {
+    "".to_string()
+  }
+  fn progress(&self, progress: u8) -> Result<(), Error> {
+    log::info!("Received progress {}/100", progress);
+    Ok(())
+  }
+
+  fn is_stopped(&self) -> bool {
+    false
+  }
 }
 
 pub struct SimpleWriter {}
 
-impl TransferJobAndWriterNotification for SimpleWriter {}
-impl WriterNotification for SimpleWriter {}
-impl TransferJob for SimpleWriter {}
+impl WriteJob for SimpleWriter {}

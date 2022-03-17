@@ -118,16 +118,16 @@ pub fn process(
     }
 
     let local_file_name = match (
-      parameters.destination_secret.unwrap_or_default(),
       parameters.source_secret.unwrap_or_default(),
+      parameters.destination_secret.unwrap_or_default(),
     ) {
       (Secret::Local, _) => Some((
-        parameters.destination_path.clone(),
         parameters.source_path.clone(),
+        parameters.destination_path.clone(),
       )),
       (_, Secret::Local) => Some((
-        parameters.source_path.clone(),
         parameters.destination_path.clone(),
+        parameters.source_path.clone(),
       )),
       (_, _) => None,
     };
@@ -139,6 +139,7 @@ pub fn process(
         job_result.clone(),
         &probe_metadata,
         parameters.probe_secret.unwrap(),
+        parameters.probe_path,
       )
       .unwrap();
     };
@@ -150,7 +151,7 @@ pub fn process(
 pub async fn start_writer(
   cloned_destination_path: &str,
   cloned_destination_secret: Secret,
-  job_and_notification: &dyn TransferWriterNotification,
+  job_and_notification: &dyn WriteJob,
   receiver: channel::Receiver<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
