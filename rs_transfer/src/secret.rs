@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind};
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -62,6 +63,12 @@ pub struct GcsCredential {
   token_uri: String,
   auth_provider_x509_cert_url: String,
   client_x509_cert_url: String,
+}
+
+impl GcsCredential {
+  pub fn to_json(&self) -> Result<String, Error> {
+    serde_json::to_string(&self).map_err(|error| Error::new(ErrorKind::Other, error.to_string()))
+  }
 }
 
 #[test]

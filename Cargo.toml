@@ -33,10 +33,8 @@ stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", br
 tokio = "1.7"
 tokio-io = "0.1"
 
-
 [build-dependencies]
 built = "0.4"
-
 
 [[bench]]
 name = "transfer_worker_benchmark"

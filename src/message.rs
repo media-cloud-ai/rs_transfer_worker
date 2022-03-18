@@ -189,11 +189,13 @@ pub async fn start_writer(
         .write_stream(cloned_destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Gcs {
-      credential: _,
-      bucket: _,
-    } => {
-      unimplemented!();
+    Secret::Gcs { credential, bucket } => {
+      std::env::set_var("SERVICE_ACCOUNT_JSON", credential.to_json()?);
+
+      let writer = GcsWriter { bucket };
+      writer
+        .write_stream(cloned_destination_path, receiver, job_and_notification)
+        .await
     }
     Secret::Http {
       endpoint: _,
@@ -281,8 +283,8 @@ pub(crate) async fn start_reader(
       reader.read_stream(source_path, sender, channel).await
     }
     Secret::Gcs { credential, bucket } => {
-      let service_account = serde_json::to_string(&credential).unwrap();
-      std::env::set_var("SERVICE_ACCOUNT_JSON", service_account);
+      std::env::set_var("SERVICE_ACCOUNT_JSON", credential.to_json()?);
+
       let reader = GcsReader { bucket };
       reader.read_stream(source_path, sender, channel).await
     }
