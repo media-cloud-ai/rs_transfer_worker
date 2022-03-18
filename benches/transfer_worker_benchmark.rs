@@ -15,7 +15,6 @@ impl From<&str> for Order {
 }
 
 fn bench_job(b: &mut Bencher, order: &Order) {
-  println!("{}", order.message);
   let job = Job::new(&order.message).unwrap();
   let job_result = JobResult::from(job.clone());
   let parameters = job.get_parameters::<TransferWorkerParameters>().unwrap();

@@ -5,6 +5,7 @@ use crate::{
 };
 use async_std::channel::Sender;
 use async_trait::async_trait;
+use futures::StreamExt;
 use reqwest::{Method, StatusCode};
 use std::io::{Error, ErrorKind};
 use tokio::runtime::Runtime;
@@ -69,26 +70,35 @@ impl StreamReader for HttpReader {
           ));
         }
 
-        let bytes = response.bytes();
-        let data_bytes = bytes.await.unwrap();
-        total_read_bytes += data_bytes.len() as u64;
-        if let Err(error) = sender.send(StreamData::Data(data_bytes.to_vec())).await {
-          if channel.is_stopped() && sender.is_closed() {
-            log::warn!(
-              "Data channel closed: could not send {} read bytes.",
-              data_bytes.len()
-            );
+        let mut bytes_stream = response.bytes_stream();
+
+        loop {
+          if channel.is_stopped() {
             return Ok(());
           }
 
-          return Err(Error::new(
-            ErrorKind::Other,
-            format!("Could not send read data through channel: {}", error),
-          ));
-        }
+          if let Some(Ok(bytes)) = bytes_stream.next().await {
+            // let data_bytes = bytes.await.unwrap();
+            total_read_bytes += bytes.len() as u64;
+            if let Err(error) = sender.send(StreamData::Data(bytes.to_vec())).await {
+              if channel.is_stopped() && sender.is_closed() {
+                log::warn!(
+                  "Data channel closed: could not send {} read bytes.",
+                  bytes.len()
+                );
+                return Ok(());
+              }
 
-        sender.send(StreamData::Eof).await.unwrap();
-        Ok(())
+              return Err(Error::new(
+                ErrorKind::Other,
+                format!("Could not send read data through channel: {}", error),
+              ));
+            }
+          } else {
+            sender.send(StreamData::Eof).await.unwrap();
+            return Ok(());
+          }
+        }
       })?;
     Ok(total_read_bytes)
   }

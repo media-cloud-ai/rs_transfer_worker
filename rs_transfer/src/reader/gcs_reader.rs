@@ -27,7 +27,7 @@ impl StreamReader for GcsReader {
     let object = client.object().read(&self.bucket, path).await.unwrap();
     let file_size = object.size;
 
-    let mut total_read_size = 0;
+    let mut total_read_bytes = 0;
 
     sender
       .send(StreamData::Size(file_size as u64))
@@ -42,24 +42,33 @@ impl StreamReader for GcsReader {
 
     let mut chunks = stream.chunks(BUFFER_SIZE);
 
-    while let Some(chunk) = chunks.next().await {
-      let vector = chunk
-        .into_iter()
-        .collect::<Result<Vec<u8>, cloud_storage::Error>>()
-        .map_err(|error| {
-          Error::new(ErrorKind::Other, format!("Cloud Storage Error : {}", error))
-        })?;
-      let chunk_size = vector.len();
-      send_buffer(&sender, channel, vector).await?;
-      total_read_size += chunk_size;
+    loop {
+      if channel.is_stopped() {
+        return Ok(total_read_bytes);
+      }
+
+      if let Some(chunk) = chunks.next().await {
+        let vector = chunk
+          .into_iter()
+          .collect::<Result<Vec<u8>, cloud_storage::Error>>()
+          .map_err(|error| {
+            Error::new(ErrorKind::Other, format!("Cloud Storage Error : {}", error))
+          })?;
+        let chunk_size = vector.len();
+        send_buffer(&sender, channel, vector).await?;
+        total_read_bytes += chunk_size as u64;
+      } else {
+        break;
+      }
     }
+
     sender.send(StreamData::Eof).await.map_err(|error| {
       Error::new(
         ErrorKind::Other,
         format!("Could not send EOF through channel: {:?}", error),
       )
     })?;
-    Ok(total_read_size as u64)
+    Ok(total_read_bytes)
   }
 }
 
