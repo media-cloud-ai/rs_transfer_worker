@@ -74,6 +74,7 @@ impl StreamReader for HttpReader {
 
         loop {
           if channel.is_stopped() {
+            sender.send(StreamData::Stop).await.unwrap();
             return Ok(());
           }
 

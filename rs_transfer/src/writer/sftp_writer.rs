@@ -68,25 +68,16 @@ impl StreamWriter for SftpWriter {
     let mut file_size = None;
     let mut received_bytes = 0;
     let mut prev_percent = 0;
-    let mut min_size = std::usize::MAX;
-    let mut max_size = 0;
 
-    loop {
-      if job_and_notification.is_stopped() {
-        return Ok(());
-      }
-
-      let stream_data = receiver.recv().await;
+    while let Ok(stream_data) = receiver.recv().await {
       match stream_data {
-        Ok(StreamData::Size(size)) => file_size = Some(size),
-        Ok(StreamData::Eof) => {
-          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
+        StreamData::Size(size) => file_size = Some(size),
+        StreamData::Stop => break,
+        StreamData::Eof => {
           sftp_writer.flush()?;
           break;
         }
-        Ok(StreamData::Data(ref data)) => {
-          min_size = std::cmp::min(data.len(), min_size);
-          max_size = std::cmp::max(data.len(), max_size);
+        StreamData::Data(ref data) => {
           log::debug!("Receive {} bytes to write...", data.len());
 
           received_bytes += data.len();
@@ -103,7 +94,6 @@ impl StreamWriter for SftpWriter {
 
           sftp_writer.write_all(data)?;
         }
-        _ => {}
       }
     }
 

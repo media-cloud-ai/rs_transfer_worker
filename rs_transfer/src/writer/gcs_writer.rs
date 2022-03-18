@@ -29,8 +29,11 @@ impl StreamWriter for GcsWriter {
         .create_streamed(
           &self.bucket,
           receiver
-            // FIXME check _job_and_notification.is_stopped()
-            .take_while(move |message| futures::future::ready(!matches!(message, StreamData::Eof)))
+            .take_while(move |message| {
+              futures::future::ready(
+                !matches!(message, StreamData::Eof) || !matches!(message, StreamData::Stop),
+              )
+            })
             .map(|stream_data| match stream_data {
               StreamData::Data(data) => Ok(data),
               other => Err(Error::new(

@@ -27,6 +27,7 @@ impl StreamReader for FileReader {
     let mut total_read_bytes: u64 = 0;
     loop {
       if channel.is_stopped() {
+        sender.send(StreamData::Stop).await.unwrap();
         return Ok(total_read_bytes);
       }
 

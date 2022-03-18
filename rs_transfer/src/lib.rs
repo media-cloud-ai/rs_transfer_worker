@@ -7,5 +7,6 @@ pub mod writer;
 pub enum StreamData {
   Data(Vec<u8>),
   Size(u64),
+  Stop,
   Eof,
 }

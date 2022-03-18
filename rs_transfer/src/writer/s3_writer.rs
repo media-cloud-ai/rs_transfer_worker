@@ -166,20 +166,14 @@ impl StreamWriter for S3Writer {
     let mut file_size = None;
     let mut received_bytes = 0;
     let mut prev_percent = 0;
-    let mut min_size = std::usize::MAX;
-    let mut max_size = 0;
 
     let (tx, rx) = mpsc::channel();
 
-    loop {
-      if job_and_notification.is_stopped() {
-        return Ok(());
-      }
-
-      let mut stream_data = receiver.recv().await;
+    while let Ok(mut stream_data) = receiver.recv().await {
       match stream_data {
-        Ok(StreamData::Size(size)) => file_size = Some(size),
-        Ok(StreamData::Eof) => {
+        StreamData::Size(size) => file_size = Some(size),
+        StreamData::Stop => break,
+        StreamData::Eof => {
           n_jobs += 1;
           let cloned_writer = self.clone();
           let cloned_upload_identifier = upload_identifier.clone();
@@ -209,13 +203,9 @@ impl StreamWriter for S3Writer {
             .complete_s3_upload(path, &upload_identifier, complete_parts)
             .await?;
 
-          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
-          return Ok(());
+          break;
         }
-        Ok(StreamData::Data(ref mut data)) => {
-          min_size = std::cmp::min(data.len(), min_size);
-          max_size = std::cmp::max(data.len(), max_size);
-
+        StreamData::Data(ref mut data) => {
           received_bytes += data.len();
           if let Some(file_size) = file_size {
             let percent = (received_bytes as f32 / file_size as f32 * 100.0) as u8;
@@ -263,9 +253,9 @@ impl StreamWriter for S3Writer {
             part_buffer.clear();
           }
         }
-        _ => {}
       }
     }
+    Ok(())
   }
 }
 

@@ -94,6 +94,7 @@ impl StreamReader for SftpReader {
 
     loop {
       if channel.is_stopped() {
+        sender.send(StreamData::Stop).await.unwrap();
         return Ok(total_read_bytes as u64);
       }
 
