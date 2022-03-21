@@ -1,5 +1,5 @@
 use crate::{
-  error::map_send_error,
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -45,7 +45,7 @@ impl StreamReader for GcsReader {
     sender
       .send(StreamData::Size(file_size as u64))
       .await
-      .map_err(map_send_error)?;
+      .map_err(map_async_send_error)?;
 
     let stream = client
       .object()
@@ -68,7 +68,7 @@ impl StreamReader for GcsReader {
         sender
           .send(StreamData::Stop)
           .await
-          .map_err(map_send_error)?;
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -87,7 +87,10 @@ impl StreamReader for GcsReader {
       }
     }
 
-    sender.send(StreamData::Eof).await.map_err(map_send_error)?;
+    sender
+      .send(StreamData::Eof)
+      .await
+      .map_err(map_async_send_error)?;
     Ok(total_read_bytes)
   }
 }
@@ -102,7 +105,7 @@ async fn send_buffer(
       log::warn!("Data channel closed: could not send read bytes.");
       return Ok(());
     }
-    return Err(map_send_error(error));
+    return Err(map_async_send_error(error));
   }
   Ok(())
 }

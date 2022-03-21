@@ -1,5 +1,5 @@
 use crate::{
-  error::map_send_error,
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -26,7 +26,7 @@ impl StreamReader for FileReader {
     sender
       .send(StreamData::Size(metadata.len()))
       .await
-      .map_err(map_send_error)?;
+      .map_err(map_async_send_error)?;
 
     let mut total_read_bytes: u64 = 0;
     loop {
@@ -34,7 +34,7 @@ impl StreamReader for FileReader {
         sender
           .send(StreamData::Stop)
           .await
-          .map_err(map_send_error)?;
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -42,7 +42,10 @@ impl StreamReader for FileReader {
       let read_size = source_file.read(&mut buffer)?;
       total_read_bytes += read_size as u64;
       if read_size == 0 {
-        sender.send(StreamData::Eof).await.map_err(map_send_error)?;
+        sender
+          .send(StreamData::Eof)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -58,7 +61,7 @@ impl StreamReader for FileReader {
           return Ok(total_read_bytes);
         }
 
-        return Err(map_send_error(error));
+        return Err(map_async_send_error(error));
       }
     }
   }

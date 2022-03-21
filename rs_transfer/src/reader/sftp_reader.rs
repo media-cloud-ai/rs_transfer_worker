@@ -1,6 +1,6 @@
 use crate::{
   endpoint::sftp::SftpEndpoint,
-  error::map_send_error,
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -79,7 +79,7 @@ impl StreamReader for SftpReader {
     sender
       .send(StreamData::Size(file_size))
       .await
-      .map_err(map_send_error)?;
+      .map_err(map_async_send_error)?;
 
     log::info!("Start reading remote file {}...", absolute_path);
 
@@ -101,7 +101,7 @@ impl StreamReader for SftpReader {
         sender
           .send(StreamData::Stop)
           .await
-          .map_err(map_send_error)?;
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes as u64);
       }
 
@@ -109,7 +109,10 @@ impl StreamReader for SftpReader {
       let read_size = sftp_reader.read(&mut buffer)?;
 
       if read_size == 0 {
-        sender.send(StreamData::Eof).await.map_err(map_send_error)?;
+        sender
+          .send(StreamData::Eof)
+          .await
+          .map_err(map_async_send_error)?;
         log::debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
         return Ok(total_read_bytes as u64);
       }
@@ -128,7 +131,7 @@ impl StreamReader for SftpReader {
           return Ok(total_read_bytes as u64);
         }
 
-        return Err(map_send_error(error));
+        return Err(map_async_send_error(error));
       }
     }
   }

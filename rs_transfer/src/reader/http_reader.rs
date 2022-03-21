@@ -1,6 +1,6 @@
 use crate::{
   endpoint::http::{get_headers, get_method, get_url},
-  error::map_send_error,
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -78,7 +78,7 @@ impl StreamReader for HttpReader {
             sender
               .send(StreamData::Stop)
               .await
-              .map_err(map_send_error)?;
+              .map_err(map_async_send_error)?;
             return Ok(());
           }
 
@@ -94,10 +94,13 @@ impl StreamReader for HttpReader {
                 return Ok(());
               }
 
-              return Err(map_send_error(error));
+              return Err(map_async_send_error(error));
             }
           } else {
-            sender.send(StreamData::Eof).await.map_err(map_send_error)?;
+            sender
+              .send(StreamData::Eof)
+              .await
+              .map_err(map_async_send_error)?;
             return Ok(());
           }
         }

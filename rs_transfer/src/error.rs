@@ -1,8 +1,7 @@
 use crate::StreamData;
-use async_std::channel::SendError;
 use std::io::{Error, ErrorKind};
 
-pub(crate) fn map_send_error(error: SendError<StreamData>) -> Error {
+pub(crate) fn map_async_send_error(error: async_std::channel::SendError<StreamData>) -> Error {
   Error::new(
     ErrorKind::Other,
     format!(
