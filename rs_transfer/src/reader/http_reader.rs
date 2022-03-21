@@ -1,5 +1,6 @@
 use crate::{
   endpoint::http::{get_headers, get_method, get_url},
+  error::map_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -74,7 +75,10 @@ impl StreamReader for HttpReader {
 
         loop {
           if channel.is_stopped() {
-            sender.send(StreamData::Stop).await.unwrap();
+            sender
+              .send(StreamData::Stop)
+              .await
+              .map_err(map_send_error)?;
             return Ok(());
           }
 
@@ -90,13 +94,10 @@ impl StreamReader for HttpReader {
                 return Ok(());
               }
 
-              return Err(Error::new(
-                ErrorKind::Other,
-                format!("Could not send read data through channel: {}", error),
-              ));
+              return Err(map_send_error(error));
             }
           } else {
-            sender.send(StreamData::Eof).await.unwrap();
+            sender.send(StreamData::Eof).await.map_err(map_send_error)?;
             return Ok(());
           }
         }

@@ -1,5 +1,6 @@
 use crate::{
   endpoint::ftp::FtpEndpoint,
+  error::map_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -74,7 +75,7 @@ impl StreamReader for FtpReader {
       sender
         .send(StreamData::Size(file_size as u64))
         .await
-        .unwrap();
+        .map_err(map_send_error)?;
     }
 
     let buffer_size = if let Ok(buffer_size) = std::env::var("FTP_READER_BUFFER_SIZE") {
@@ -94,8 +95,11 @@ impl StreamReader for FtpReader {
         loop {
           if channel.is_stopped() {
             async_std::task::block_on(async {
-              sender.send(StreamData::Stop).await.unwrap();
-            });
+              sender
+                .send(StreamData::Stop)
+                .await
+                .map_err(|error| FtpError::ConnectionError(map_send_error(error)))
+            })?;
             return Ok(total_read_bytes);
           }
 
@@ -106,8 +110,11 @@ impl StreamReader for FtpReader {
 
           if read_size == 0 {
             async_std::task::block_on(async {
-              sender.send(StreamData::Eof).await.unwrap();
-            });
+              sender
+                .send(StreamData::Eof)
+                .await
+                .map_err(|error| FtpError::ConnectionError(map_send_error(error)))
+            })?;
             log::debug!(
               "Read {} bytes on {} expected.",
               total_read_bytes,
@@ -131,10 +138,7 @@ impl StreamReader for FtpReader {
                 return Ok(());
               }
 
-              return Err(FtpError::ConnectionError(Error::new(
-                ErrorKind::Other,
-                format!("Could not send read data through channel: {}", error),
-              )));
+              return Err(FtpError::ConnectionError(map_send_error(error)));
             }
             Ok(())
           })?;
