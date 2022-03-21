@@ -1,4 +1,5 @@
 use crate::{
+  error::map_sync_send_error,
   writer::{StreamWriter, WriteJob},
   StreamData,
 };
@@ -23,6 +24,9 @@ impl StreamWriter for GcsWriter {
   ) -> Result<(), Error> {
     let client = Client::default();
     let job_id_str = job_and_notification.get_str_job_id();
+    let total_file_size;
+    let mut received_bytes = 0;
+    let mut prev_percent = 0;
 
     let first_message = receiver.recv().await.map_err(|error| {
       Error::new(
@@ -34,8 +38,11 @@ impl StreamWriter for GcsWriter {
       )
     })?;
 
+    let (progression_sender, progression_receiver) = std::sync::mpsc::sync_channel(100);
+
     match first_message {
       StreamData::Size(file_size) => {
+        total_file_size = file_size;
         client
           .object()
           .create_streamed(
@@ -46,10 +53,16 @@ impl StreamWriter for GcsWriter {
                   !matches!(message, StreamData::Eof) || !matches!(message, StreamData::Stop),
                 )
               })
-              .map(|stream_data| match stream_data {
-                StreamData::Data(data) => Ok(data),
+              .map(move |stream_data| match stream_data {
+                StreamData::Data(data) => {
+                  received_bytes += data.len();
+                  progression_sender
+                    .send(received_bytes)
+                    .map_err(map_sync_send_error)?;
+                  Ok(data)
+                }
                 other => Err(Error::new(
-                  ErrorKind::Other,
+                  ErrorKind::InvalidData,
                   format!("GCS writer received an unexpected message: {:?}", other),
                 )),
               }),
@@ -87,6 +100,15 @@ impl StreamWriter for GcsWriter {
             other
           ),
         ));
+      }
+    }
+
+    while let Ok(received_bytes) = progression_receiver.recv() {
+      let percent = (received_bytes as f32 / total_file_size as f32 * 100.0) as u8;
+
+      if percent > prev_percent {
+        prev_percent = percent;
+        job_and_notification.progress(percent)?;
       }
     }
 
