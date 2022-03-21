@@ -106,7 +106,7 @@ impl FtpWriter {
     let mut received_bytes = 0;
     let mut prev_percent = 0;
 
-    log::debug!(target: &job_and_notification.get_str_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
+    log::debug!(target: &job_and_notification.get_str_job_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
     let mut stream = ftp_stream
       .start_put_file(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
@@ -156,12 +156,12 @@ impl StreamWriter for FtpWriter {
       .upload_file(&mut ftp_stream, path, receiver, job_and_notification)
       .await?;
 
-    log::info!(target: &job_and_notification.get_str_id(), "ending FTP data connection");
+    log::info!(target: &job_and_notification.get_str_job_id(), "ending FTP data connection");
     ftp_stream
       .finish_put_file()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    log::info!(target: &job_and_notification.get_str_id(), "closing FTP connection");
+    log::info!(target: &job_and_notification.get_str_job_id(), "closing FTP connection");
     ftp_stream
       .quit()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;

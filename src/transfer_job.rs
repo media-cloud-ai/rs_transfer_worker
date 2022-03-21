@@ -10,7 +10,7 @@ pub struct TransferWriterNotification {
 }
 
 impl WriteJob for TransferWriterNotification {
-  fn get_str_id(&self) -> String {
+  fn get_str_job_id(&self) -> String {
     self.job_result.get_str_job_id()
   }
 

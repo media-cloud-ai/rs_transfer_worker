@@ -78,7 +78,7 @@ impl StreamWriter for SftpWriter {
           break;
         }
         StreamData::Data(ref data) => {
-          log::debug!("Receive {} bytes to write...", data.len());
+          log::debug!(target: &job_and_notification.get_str_job_id(), "Receive {} bytes to write...", data.len());
 
           received_bytes += data.len();
           if let Some(file_size) = file_size {

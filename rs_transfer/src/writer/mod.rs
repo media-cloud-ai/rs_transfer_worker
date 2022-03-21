@@ -25,11 +25,11 @@ pub trait StreamWriter {
 }
 
 pub trait WriteJob: Send + Sync {
-  fn get_str_id(&self) -> String {
+  fn get_str_job_id(&self) -> String {
     "".to_string()
   }
   fn progress(&self, progress: u8) -> Result<(), Error> {
-    log::info!("Received progress {}/100", progress);
+    log::info!(target: &self.get_str_job_id(), "Received progress {}/100", progress);
     Ok(())
   }
 
@@ -38,6 +38,6 @@ pub trait WriteJob: Send + Sync {
   }
 }
 
-pub struct SimpleWriter {}
+pub struct DummyWriteJob {}
 
-impl WriteJob for SimpleWriter {}
+impl WriteJob for DummyWriteJob {}

@@ -5,7 +5,7 @@ use mcai_worker_sdk::{job::JobResult, prelude::JobStatus, MessageError};
 use rs_transfer::{
   reader::{CursorReader, SimpleReader, StreamReader},
   secret::Secret,
-  writer::SimpleWriter,
+  writer::DummyWriteJob,
 };
 use serde::Serialize;
 use stainless_ffmpeg::probe::Probe;
@@ -45,7 +45,7 @@ pub fn upload_metadata(
 
   let reception_task = thread::spawn(move || {
     task::block_on(async {
-      let probe_writer = SimpleWriter {};
+      let probe_writer = DummyWriteJob {};
       let runtime = tokio::runtime::Runtime::new().unwrap();
       let runtime = Arc::new(Mutex::new(runtime));
       let s3_writer_runtime = runtime.clone();
