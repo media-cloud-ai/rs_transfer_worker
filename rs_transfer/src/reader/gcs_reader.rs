@@ -24,7 +24,19 @@ impl StreamReader for GcsReader {
   ) -> Result<u64, Error> {
     let client = Client::default();
 
-    let object = client.object().read(&self.bucket, path).await.unwrap();
+    let object = client
+      .object()
+      .read(&self.bucket, path)
+      .await
+      .map_err(|error| {
+        Error::new(
+          ErrorKind::Other,
+          format!(
+            "Could not read {:?} object info from remote {:?} bucket: {:?}",
+            path, self.bucket, error
+          ),
+        )
+      })?;
     let file_size = object.size;
 
     let mut total_read_bytes = 0;
@@ -32,13 +44,26 @@ impl StreamReader for GcsReader {
     sender
       .send(StreamData::Size(file_size as u64))
       .await
-      .unwrap();
+      .map_err(|error| {
+        Error::new(
+          ErrorKind::Other,
+          format!("Could not send Size through channel: {:?}", error),
+        )
+      })?;
 
     let stream = client
       .object()
       .download_streamed(&self.bucket, path)
       .await
-      .unwrap();
+      .map_err(|error| {
+        Error::new(
+          ErrorKind::Other,
+          format!(
+            "Could not initialize {:?} object download from remote {:?} bucket: {:?}",
+            path, self.bucket, error
+          ),
+        )
+      })?;
 
     let mut chunks = stream.chunks(BUFFER_SIZE);
 

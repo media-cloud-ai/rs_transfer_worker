@@ -174,3 +174,40 @@ pub fn test_secret_sftp() {
   let secret: Secret = serde_json::from_str(json_str).unwrap();
   assert_eq!(secret, expected);
 }
+
+#[test]
+pub fn test_secret_gcs() {
+  let json_str = r#"{
+    "type": "gcs",
+    "bucket": "test_bucket",
+    "credential": {
+      "type": "service_account",
+      "project_id": "rs_transfer",
+      "private_key_id": "0123456789abcdefghijklmnopqrstuvwxyz",
+      "private_key": "-----BEGIN PRIVATE KEY-----\n0123456789abcdefghijklmnopqrstuvwxyz\n-----END PRIVATE KEY-----\n",
+      "client_email": "johnny@B_g00d.iam.gserviceaccount.com",
+      "client_id": "0123456789abcdefghijklmnopqrstuvwxyz",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/johnny%B_g00d.iam.gserviceaccount.com"
+    }
+  }"#;
+  let expected = Secret::Gcs {
+    bucket: "test_bucket".to_string(),
+    credential: GcsCredential {
+      gcs_type: "service_account".to_string(),
+      project_id: "rs_transfer".to_string(),
+      private_key_id: "0123456789abcdefghijklmnopqrstuvwxyz".to_string(),
+      private_key: "-----BEGIN PRIVATE KEY-----\n0123456789abcdefghijklmnopqrstuvwxyz\n-----END PRIVATE KEY-----\n".to_string(),
+      client_email: "johnny@B_g00d.iam.gserviceaccount.com".to_string(),
+      client_id: "0123456789abcdefghijklmnopqrstuvwxyz".to_string(),
+      auth_uri: "https://accounts.google.com/o/oauth2/auth".to_string(),
+      token_uri: "https://oauth2.googleapis.com/token".to_string(),
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs".to_string(),
+      client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/johnny%B_g00d.iam.gserviceaccount.com".to_string()
+    }
+  };
+  let secret: Secret = serde_json::from_str(json_str).unwrap();
+  assert_eq!(secret, expected);
+}
