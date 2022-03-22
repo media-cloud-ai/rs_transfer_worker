@@ -1,6 +1,7 @@
 mod cursor_reader;
 mod file_reader;
 mod ftp_reader;
+mod gcs_reader;
 mod http_reader;
 mod s3_reader;
 mod sftp_reader;
@@ -8,6 +9,7 @@ mod sftp_reader;
 pub use cursor_reader::CursorReader;
 pub use file_reader::FileReader;
 pub use ftp_reader::FtpReader;
+pub use gcs_reader::GcsReader;
 pub use http_reader::HttpReader;
 pub use s3_reader::S3Reader;
 pub use sftp_reader::SftpReader;

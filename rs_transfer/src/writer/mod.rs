@@ -1,5 +1,6 @@
 mod file_writer;
 mod ftp_writer;
+mod gcs_writer;
 mod s3_writer;
 mod sftp_writer;
 
@@ -8,6 +9,7 @@ use async_std::channel::Receiver;
 use async_trait::async_trait;
 pub use file_writer::FileWriter;
 pub use ftp_writer::FtpWriter;
+pub use gcs_writer::GcsWriter;
 pub use s3_writer::S3Writer;
 pub use sftp_writer::SftpWriter;
 use std::io::Error;
@@ -23,11 +25,11 @@ pub trait StreamWriter {
 }
 
 pub trait WriteJob: Send + Sync {
-  fn get_str_id(&self) -> String {
+  fn get_str_job_id(&self) -> String {
     "".to_string()
   }
   fn progress(&self, progress: u8) -> Result<(), Error> {
-    log::info!("Received progress {}/100", progress);
+    log::info!(target: &self.get_str_job_id(), "Received progress {}/100", progress);
     Ok(())
   }
 
@@ -36,6 +38,6 @@ pub trait WriteJob: Send + Sync {
   }
 }
 
-pub struct SimpleWriter {}
+pub struct DummyWriteJob {}
 
-impl WriteJob for SimpleWriter {}
+impl WriteJob for DummyWriteJob {}

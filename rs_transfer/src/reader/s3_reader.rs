@@ -1,5 +1,6 @@
 use crate::{
   endpoint::s3::S3Endpoint,
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -68,7 +69,10 @@ impl S3Reader {
     let head = handler.await??;
 
     if let Some(size) = head.content_length {
-      sender.send(StreamData::Size(size as u64)).await.unwrap();
+      sender
+        .send(StreamData::Size(size as u64))
+        .await
+        .map_err(map_async_send_error)?;
     }
 
     let handler = self.runtime.clone().lock().unwrap().spawn(async move {
@@ -98,6 +102,10 @@ impl S3Reader {
 
     loop {
       if channel.is_stopped() {
+        sender
+          .send(StreamData::Stop)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -117,13 +125,13 @@ impl S3Reader {
           return Ok(total_read_bytes);
         }
 
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!("Could not send read data through channel: {}", error),
-        ));
+        return Err(map_async_send_error(error));
       }
     }
-    sender.send(StreamData::Eof).await.unwrap();
+    sender
+      .send(StreamData::Eof)
+      .await
+      .map_err(map_async_send_error)?;
     Ok(total_read_bytes)
   }
 }

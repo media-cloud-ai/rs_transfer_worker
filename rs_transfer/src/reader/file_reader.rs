@@ -1,4 +1,5 @@
 use crate::{
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -6,7 +7,7 @@ use async_std::channel::Sender;
 use async_trait::async_trait;
 use std::{
   fs::File,
-  io::{Error, ErrorKind, Read},
+  io::{Error, Read},
 };
 
 pub struct FileReader {}
@@ -22,11 +23,18 @@ impl StreamReader for FileReader {
     let mut source_file = File::open(path)?;
 
     let metadata = source_file.metadata()?;
-    sender.send(StreamData::Size(metadata.len())).await.unwrap();
+    sender
+      .send(StreamData::Size(metadata.len()))
+      .await
+      .map_err(map_async_send_error)?;
 
     let mut total_read_bytes: u64 = 0;
     loop {
       if channel.is_stopped() {
+        sender
+          .send(StreamData::Stop)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -34,7 +42,10 @@ impl StreamReader for FileReader {
       let read_size = source_file.read(&mut buffer)?;
       total_read_bytes += read_size as u64;
       if read_size == 0 {
-        sender.send(StreamData::Eof).await.unwrap();
+        sender
+          .send(StreamData::Eof)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -50,10 +61,7 @@ impl StreamReader for FileReader {
           return Ok(total_read_bytes);
         }
 
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!("Could not send read data through channel: {}", error),
-        ));
+        return Err(map_async_send_error(error));
       }
     }
   }

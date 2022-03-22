@@ -1,5 +1,6 @@
 use crate::{
   endpoint::sftp::SftpEndpoint,
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
@@ -75,7 +76,10 @@ impl StreamReader for SftpReader {
 
     log::debug!("Size of {} remote file: {}", absolute_path, file_size);
 
-    sender.send(StreamData::Size(file_size)).await.unwrap();
+    sender
+      .send(StreamData::Size(file_size))
+      .await
+      .map_err(map_async_send_error)?;
 
     log::info!("Start reading remote file {}...", absolute_path);
 
@@ -94,6 +98,10 @@ impl StreamReader for SftpReader {
 
     loop {
       if channel.is_stopped() {
+        sender
+          .send(StreamData::Stop)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes as u64);
       }
 
@@ -101,7 +109,10 @@ impl StreamReader for SftpReader {
       let read_size = sftp_reader.read(&mut buffer)?;
 
       if read_size == 0 {
-        sender.send(StreamData::Eof).await.unwrap();
+        sender
+          .send(StreamData::Eof)
+          .await
+          .map_err(map_async_send_error)?;
         log::debug!("Read {} bytes on {} expected.", total_read_bytes, file_size);
         return Ok(total_read_bytes as u64);
       }
@@ -120,10 +131,7 @@ impl StreamReader for SftpReader {
           return Ok(total_read_bytes as u64);
         }
 
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!("Could not send read data through channel: {}", error),
-        ));
+        return Err(map_async_send_error(error));
       }
     }
   }

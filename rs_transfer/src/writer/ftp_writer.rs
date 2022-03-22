@@ -105,31 +105,21 @@ impl FtpWriter {
     let mut file_size = None;
     let mut received_bytes = 0;
     let mut prev_percent = 0;
-    let mut min_size = std::usize::MAX;
-    let mut max_size = 0;
 
-    log::debug!(target: &job_and_notification.get_str_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
+    log::debug!(target: &job_and_notification.get_str_job_id(), "Start FTP upload to file: {}, directory: {:?}.", filename, root_dir);
     let mut stream = ftp_stream
       .start_put_file(&filename)
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    loop {
-      if job_and_notification.is_stopped() {
-        return Ok(());
-      }
-
-      let stream_data = receiver.recv().await;
+    while let Ok(stream_data) = receiver.recv().await {
       match stream_data {
-        Ok(StreamData::Size(size)) => file_size = Some(size),
-        Ok(StreamData::Eof) => {
-          log::info!(target: &job_and_notification.get_str_id(), "packet size: min = {}, max= {}", min_size, max_size);
+        StreamData::Size(size) => file_size = Some(size),
+        StreamData::Stop => break,
+        StreamData::Eof => {
           stream.flush()?;
           break;
         }
-        Ok(StreamData::Data(ref data)) => {
-          min_size = std::cmp::min(data.len(), min_size);
-          max_size = std::cmp::max(data.len(), max_size);
-
+        StreamData::Data(ref data) => {
           received_bytes += data.len();
           if let Some(file_size) = file_size {
             let percent = (received_bytes as f32 / file_size as f32 * 100.0) as u8;
@@ -144,7 +134,6 @@ impl FtpWriter {
 
           stream.write_all(data)?;
         }
-        _ => {}
       }
     }
     Ok(())
@@ -167,12 +156,12 @@ impl StreamWriter for FtpWriter {
       .upload_file(&mut ftp_stream, path, receiver, job_and_notification)
       .await?;
 
-    log::info!(target: &job_and_notification.get_str_id(), "ending FTP data connection");
+    log::info!(target: &job_and_notification.get_str_job_id(), "ending FTP data connection");
     ftp_stream
       .finish_put_file()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-    log::info!(target: &job_and_notification.get_str_id(), "closing FTP connection");
+    log::info!(target: &job_and_notification.get_str_job_id(), "closing FTP connection");
     ftp_stream
       .quit()
       .map_err(|e| Error::new(ErrorKind::Other, e))?;

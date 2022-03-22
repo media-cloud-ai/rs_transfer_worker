@@ -1,10 +1,11 @@
 use crate::{
+  error::map_async_send_error,
   reader::{ReaderNotification, StreamReader},
   StreamData,
 };
 use async_std::channel::Sender;
 use async_trait::async_trait;
-use std::io::{Cursor, Error, ErrorKind, Read};
+use std::io::{Cursor, Error, Read};
 
 pub struct CursorReader {
   content: Vec<u8>,
@@ -48,10 +49,17 @@ impl StreamReader for CursorReader {
     let mut stream = Cursor::new(self.content.clone());
     let stream_length = self.content.len() as u64;
 
-    sender.send(StreamData::Size(stream_length)).await.unwrap();
+    sender
+      .send(StreamData::Size(stream_length))
+      .await
+      .map_err(map_async_send_error)?;
 
     loop {
       if channel.is_stopped() {
+        sender
+          .send(StreamData::Stop)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -59,7 +67,10 @@ impl StreamReader for CursorReader {
       let read_size = stream.read(&mut buffer)?;
       total_read_bytes += read_size as u64;
       if read_size == 0 {
-        sender.send(StreamData::Eof).await.unwrap();
+        sender
+          .send(StreamData::Eof)
+          .await
+          .map_err(map_async_send_error)?;
         return Ok(total_read_bytes);
       }
 
@@ -75,10 +86,7 @@ impl StreamReader for CursorReader {
           return Ok(total_read_bytes);
         }
 
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!("Could not send read data through channel: {}", error),
-        ));
+        return Err(map_async_send_error(error));
       }
     }
   }
