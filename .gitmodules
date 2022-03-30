@@ -1,3 +1,0 @@
-[submodule "rs_transfer/rust-ftp"]
-	path = rs_transfer/rust-ftp
-	url = https://github.com/media-io/rust-ftp
