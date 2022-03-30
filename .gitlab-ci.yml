@@ -15,11 +15,11 @@ include:
 
 build:test:
   stage: test
-  script: cargo test && cd rs_transfer && cargo test
+  script: cargo test
 
 build:format:
   stage: test
-  script: cargo fmt -- --check && cd rs_transfer && cargo fmt -- --check
+  script: cargo fmt -- --check
 
 build:clippy:
   stage: test
@@ -31,7 +31,7 @@ build:coverage:
   stage: test
   before_script:
     - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
-  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features && cd rs_transfer && cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
+  script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
   after_script:
     - apt-get install -y curl
     - bash <(curl -s https://codecov.io/bash)
