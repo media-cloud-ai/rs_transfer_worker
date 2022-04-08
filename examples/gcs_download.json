@@ -1,0 +1,35 @@
+{
+  "job_id": 1234,
+  "parameters": [
+    {
+      "id": "source_path",
+      "type": "string",
+      "value": "TEST_FILE.txt"
+    },
+    {
+      "id": "source_secret",
+      "type": "string",
+      "value": {
+        "type": "gcs",
+        "credential": {
+          "type": "service_account",
+          "project_id": "my_project",
+          "private_key_id": "0123456789abcdefghij0123456789abcdefghij",
+          "private_key": "-----BEGIN PRIVATE KEY-----\n*************** My private key *************\n-----END PRIVATE KEY-----\n",
+          "client_email": "me@my_project.iam.gserviceaccount.com",
+          "client_id": "0123456789abcdefghij",
+          "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+          "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/me%40my_project.iam.gserviceaccount.com"
+        },
+        "bucket": "my_bucket"
+      }
+    },
+    {
+      "id": "destination_path",
+      "type": "string",
+      "value": "./tests/GCS_DOWNLOADED_FILE.txt"
+    }
+  ]
+}
