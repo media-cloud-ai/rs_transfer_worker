@@ -20,7 +20,7 @@ RUN apt-get update && \
     cargo install --path .
 
 FROM debian:buster
-COPY --from=builder /usr/local/cargo/bin/transfer_worker /usr/bin
+COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
 
 RUN apt update && \
     apt install -y \
@@ -28,4 +28,4 @@ RUN apt update && \
         ca-certificates
 
 ENV AMQP_QUEUE job_transfer
-CMD transfer_worker
+CMD rs_transfer_worker
