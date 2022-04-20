@@ -1,5 +1,5 @@
 use mcai_worker_sdk::prelude::start_worker;
-use transfer_worker::TransferEvent;
+use rs_transfer_worker::TransferEvent;
 
 fn main() {
   let message_event = TransferEvent::default();

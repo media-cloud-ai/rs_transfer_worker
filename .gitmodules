@@ -1,3 +1,0 @@
-[submodule "rust-ftp"]
-	path = rust-ftp
-	url = https://github.com/media-io/rust-ftp.git

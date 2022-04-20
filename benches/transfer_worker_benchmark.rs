@@ -1,8 +1,7 @@
 use criterion::{criterion_group, criterion_main, Bencher, BenchmarkId, Criterion};
 use mcai_worker_sdk::job::{Job, JobResult};
-
+use rs_transfer_worker::{message, TransferWorkerParameters};
 use std::time::Duration;
-use transfer_worker::TransferWorkerParameters;
 
 struct Order {
   message: String,
@@ -19,7 +18,7 @@ fn bench_job(b: &mut Bencher, order: &Order) {
   let job = Job::new(&order.message).unwrap();
   let job_result = JobResult::from(job.clone());
   let parameters = job.get_parameters::<TransferWorkerParameters>().unwrap();
-  b.iter(|| transfer_worker::message::process(None, parameters.clone(), job_result.clone()));
+  b.iter(|| message::process(None, parameters.clone(), job_result.clone()));
 }
 
 fn ftp_upload_benchmark(c: &mut Criterion) {

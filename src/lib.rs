@@ -1,14 +1,11 @@
-#[macro_use]
-extern crate serde_derive;
-
-mod endpoint;
 pub mod message;
-mod reader;
-pub mod secret;
-mod writer;
+#[cfg(feature = "media_probe_and_upload")]
+mod probe;
+mod transfer_job;
 
-use crate::secret::Secret;
 use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version};
+use rs_transfer::secret::Secret;
+use serde::Deserialize;
 
 pub mod built_info {
   include!(concat!(env!("OUT_DIR"), "/built.rs"));
@@ -23,6 +20,10 @@ pub struct TransferWorkerParameters {
   source_secret: Option<Secret>,
   destination_path: String,
   destination_secret: Option<Secret>,
+  #[cfg(feature = "media_probe_and_upload")]
+  probe_secret: Option<Secret>,
+  #[cfg(feature = "media_probe_and_upload")]
+  probe_path: Option<String>,
 }
 
 impl McaiWorker<TransferWorkerParameters> for TransferEvent {

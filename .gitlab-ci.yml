@@ -1,3 +1,7 @@
+variables:
+  MEDIA_FEATURE_DEPENDENCIES: "clang libavutil-dev libavdevice-dev libavfilter-dev libavformat-dev libavresample-dev libpostproc-dev libswresample-dev ffmpeg"
+
+
 stages:
   - test
   - publish
@@ -9,12 +13,24 @@ include:
   - project: 'media-cloud-ai/ci/pipelines'
     file: '/rust/rust-base.yml'
 
+build:test:
+  stage: test
+  script: cargo test
+
 build:format:
   stage: test
   script: cargo fmt -- --check
 
+build:clippy:
+  stage: test
+  before_script:
+    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
+  script: cargo clippy --all-targets --all-features -- -D warnings
+
 build:coverage:
   stage: test
+  before_script:
+    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
   script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
   after_script:
     - apt-get install -y curl
