@@ -5,11 +5,19 @@ WORKDIR /src
 
 RUN apt-get update && \
     apt-get install -y \
+        clang \
         libssl-dev \
+        libavutil-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libavformat-dev \
+        libavresample-dev \
+        libpostproc-dev \
+        libswresample-dev \
+        ffmpeg \
         && \
-    cargo build --verbose --release && \
-    cargo install --path . && \
-    ls  /usr/local/cargo/bin
+    cargo build --verbose --release  --features media_probe_and_upload && \
+    cargo install --path .
 
 FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
