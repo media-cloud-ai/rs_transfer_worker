@@ -4,7 +4,6 @@ variables:
 
 stages:
   - test
-  - build
   - publish
   - benchmark
 
@@ -38,25 +37,22 @@ build:coverage:
     - bash <(curl -s https://codecov.io/bash)
   coverage: '/^\d+.\d+% coverage/'
 
-build:
-  stage: build
+publish:registry:probe:
+  stage: publish
+  image: docker
   services:
     - docker:dind
-  variables:
-    CONTAINER_REGISTRY: registry.gitlab.com
   before_script:
-    - apk add --no-cache git
-    - >
-      docker login -u $CI_REGISTRY_USER -p
-      $CI_REGISTRY_PASSWORD $CONTAINER_REGISTRY
+    - docker info
+    - apk add --no-cache git make cargo
   script:
-    - export IMAGE_TAG=$CI_COMMIT_TAG-probe
-    - >
-      docker build --build-arg TAG=$IMAGE_TAG
-      -t $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG -f Dockerfile.probe .
+    - if [ ! -f Cargo.lock ]; then cargo generate-lockfile; fi
+    - export VERSION=`cargo pkgid | cut -d# -f2 | cut -d':' -f2`
+    - if [ "$VERSION" != "$CI_BUILD_TAG" ]; then exit -1; fi
+    - export IMAGE_TAG=`git describe --always --tags --first-parent`-probe
+    - docker build -t $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG -f Dockerfile.probe .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CONTAINER_REGISTRY
     - docker push $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
-    - docker rmi $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
-    - docker image prune -f
     - echo $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
   only:
     - tags
