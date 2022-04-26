@@ -37,6 +37,27 @@ build:coverage:
     - bash <(curl -s https://codecov.io/bash)
   coverage: '/^\d+.\d+% coverage/'
 
+publish:registry:probe:
+  stage: publish
+  image: docker
+  services:
+    - docker:dind
+  before_script:
+    - docker info
+    - apk add --no-cache git make cargo
+  script:
+    - if [ ! -f Cargo.lock ]; then cargo generate-lockfile; fi
+    - export VERSION=`cargo pkgid | cut -d# -f2 | cut -d':' -f2`
+    - if [ "$VERSION" != "$CI_BUILD_TAG" ]; then exit -1; fi
+    - export IMAGE_TAG=`git describe --always --tags --first-parent`-probe
+    - docker build -t $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG -f Dockerfile.probe .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CONTAINER_REGISTRY
+    - docker push $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
+    - echo $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG
+  only:
+    - tags
+
+
 benchmark:
   stage: benchmark
   image: docker/compose:latest
