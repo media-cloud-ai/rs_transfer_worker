@@ -9,7 +9,6 @@ RUN apt-get update && \
         && \
     cargo build --verbose --release && \
     cargo install --path . && \
-    ls  /usr/local/cargo/bin
 
 FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
