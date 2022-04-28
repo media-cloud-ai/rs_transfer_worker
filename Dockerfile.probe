@@ -16,8 +16,8 @@ RUN apt-get update && \
         libswresample-dev \
         ffmpeg \
         && \
-    cargo build --verbose --release  --features media_probe_and_upload && \
-    cargo install --path .
+    cargo build --verbose --release --features media_probe_and_upload && \
+    cargo install --features media_probe_and_upload --path .
 
 FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
@@ -25,7 +25,8 @@ COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
 RUN apt update && \
     apt install -y \
         libssl1.1 \
-        ca-certificates
+        ca-certificates \
+        ffmpeg
 
 ENV AMQP_QUEUE job_transfer
 CMD rs_transfer_worker
