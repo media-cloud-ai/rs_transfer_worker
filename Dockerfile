@@ -8,7 +8,7 @@ RUN apt-get update && \
         libssl-dev \
         && \
     cargo build --verbose --release && \
-    cargo install --path . && \
+    cargo install --path .
 
 FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
