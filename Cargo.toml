@@ -2,11 +2,12 @@
 name = "rs_transfer_worker"
 version = "0.5.0"
 authors =[
-  "Valentin Noel <valentin.noel@media-io.com>",
-  "Marc-Antoine Arnaud <maarnaud@media-io.com>",
-  "Thibaud Le Graverend <thibaud.legraverend@media-io.com>",
+  "Valentin Noel <valentin.noel@luminvent.com>",
+  "Marc-Antoine Arnaud <maarnaud@luminvent.com>",
+  "Thibaud Le Graverend <thibaud.legraverend@luminvent.com>",
 ]
 edition = "2018"
+license = "MIT"
 
 [features]
 media_probe_and_upload = [
@@ -19,7 +20,7 @@ async-std = { version = "1.10", features = ["attributes", "tokio1"] }
 criterion = "0.3.5"
 infer = { version = "0.7.0", optional = true }
 log = "0.4.14"
-mcai_worker_sdk = "1.1.1"
+mcai_worker_sdk = "2.0.0-rc0"
 rs_transfer = "1.0.0"
 schemars = "0.8.0"
 serde = { version = "^1.0", features = ["derive"] }
@@ -29,7 +30,7 @@ tokio = "1.7"
 tokio-io = "0.1"
 
 [build-dependencies]
-built = "0.4"
+mcai_build = "0.1.2"
 
 [[bench]]
 name = "transfer_worker_benchmark"
