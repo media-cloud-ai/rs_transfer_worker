@@ -24,13 +24,13 @@ build:format:
 build:clippy:
   stage: test
   before_script:
-    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
+    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} git -y
   script: cargo clippy --all-targets --all-features -- -D warnings
 
 build:coverage:
   stage: test
   before_script:
-    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} -y
+    - apt-get update -q && apt-get install ${MEDIA_FEATURE_DEPENDENCIES} git -y
   script: cargo tarpaulin --avoid-cfg-tarpaulin --out Xml --all-features
   after_script:
     - apt-get install -y curl
