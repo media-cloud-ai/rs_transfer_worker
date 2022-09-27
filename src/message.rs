@@ -27,6 +27,8 @@ pub fn process(
 
   let cloned_source_path = parameters.source_path.clone();
 
+  let emit_progressions = parameters.emit_progressions.map_or(true, |x| x);
+
   #[cfg(feature = "media_probe_and_upload")]
   let source_secret = parameters.source_secret.clone().unwrap_or_default();
   #[cfg(not(feature = "media_probe_and_upload"))]
@@ -44,6 +46,7 @@ pub fn process(
       let job_and_notification = TransferWriterNotification {
         job_result: cloned_job_result,
         channel: cloned_writer_channel,
+        emit_progressions,
       };
 
       start_writer(

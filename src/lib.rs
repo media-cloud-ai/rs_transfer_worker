@@ -20,6 +20,7 @@ pub struct TransferWorkerParameters {
   source_secret: Option<Secret>,
   destination_path: String,
   destination_secret: Option<Secret>,
+  emit_progressions: Option<bool>,
   #[cfg(feature = "media_probe_and_upload")]
   probe_secret: Option<Secret>,
   #[cfg(feature = "media_probe_and_upload")]

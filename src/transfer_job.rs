@@ -7,6 +7,7 @@ use std::io::{Error, ErrorKind};
 pub struct TransferWriterNotification {
   pub job_result: JobResult,
   pub channel: Option<McaiChannel>,
+  pub emit_progressions: bool,
 }
 
 impl WriteJob for TransferWriterNotification {
@@ -15,8 +16,12 @@ impl WriteJob for TransferWriterNotification {
   }
 
   fn progress(&self, progress: u8) -> Result<(), Error> {
-    publish_job_progression(self.channel.clone(), self.job_result.get_job_id(), progress)
-      .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))
+    if self.emit_progressions {
+      publish_job_progression(self.channel.clone(), self.job_result.get_job_id(), progress)
+        .map_err(|_| Error::new(ErrorKind::Other, "unable to publish job progression"))
+    } else {
+      Ok(())
+    }
   }
 
   fn is_stopped(&self) -> bool {
