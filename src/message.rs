@@ -24,11 +24,8 @@ pub fn process(
   let cloned_job_result = job_result.clone();
   let cloned_reader_channel = channel.clone();
   let cloned_writer_channel = channel.clone();
-
   let cloned_source_path = parameters.source_path.clone();
-
-  let emit_progressions = parameters.emit_progressions.map_or(true, |x| x);
-
+  let emit_progressions = parameters.emit_progressions;
   #[cfg(feature = "media_probe_and_upload")]
   let source_secret = parameters.source_secret.clone().unwrap_or_default();
   #[cfg(not(feature = "media_probe_and_upload"))]
