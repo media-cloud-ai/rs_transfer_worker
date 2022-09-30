@@ -24,7 +24,7 @@ rs_transfer = "1.0.0"
 schemars = "0.8.0"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
-stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", branch = "master", optional = true}
+stainless_ffmpeg = { version = "0.2.7", optional = true}
 tokio = "1.7"
 tokio-io = "0.1"
 
