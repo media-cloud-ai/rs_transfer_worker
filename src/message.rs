@@ -48,7 +48,7 @@ pub fn process(
 
       start_writer(
         &cloned_destination_path,
-        cloned_destination_secret,
+        &cloned_destination_secret,
         &job_and_notification,
         receiver,
         s3_writer_runtime,
@@ -64,7 +64,7 @@ pub fn process(
       };
       start_reader(
         &cloned_source_path,
-        source_secret,
+        &source_secret,
         sender,
         runtime.clone(),
         &channel,
@@ -134,11 +134,11 @@ pub fn process(
       parameters.source_secret.unwrap_or_default(),
       parameters.destination_secret.unwrap_or_default(),
     ) {
-      (Secret::Local, _) => Some((
+      (Secret::Local(_), _) => Some((
         parameters.source_path.clone(),
         parameters.destination_path.clone(),
       )),
-      (_, Secret::Local) => Some((
+      (_, Secret::Local(_)) => Some((
         parameters.destination_path.clone(),
         parameters.source_path.clone(),
       )),
@@ -162,95 +162,46 @@ pub fn process(
 }
 
 pub async fn start_writer(
-  cloned_destination_path: &str,
-  cloned_destination_secret: Secret,
+  destination_path: &str,
+  destination_secret: &Secret,
   job_and_notification: &dyn WriteJob,
   receiver: channel::Receiver<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
 ) -> Result<(), Error> {
-  match cloned_destination_secret {
-    Secret::Ftp {
-      hostname,
-      port,
-      secure,
-      username,
-      password,
-      prefix,
-    } => {
-      let writer = FtpWriter {
-        hostname,
-        port,
-        secure,
-        username,
-        password,
-        prefix,
-      };
+  match destination_secret {
+    Secret::Ftp(ftp_secret) => {
+      let writer = FtpWriter::from(ftp_secret);
       writer
-        .write_stream(cloned_destination_path, receiver, job_and_notification)
+        .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Gcs { credential, bucket } => {
-      std::env::set_var("SERVICE_ACCOUNT_JSON", credential.to_json()?);
+    Secret::Gcs(gcs_secret) => {
+      std::env::set_var("SERVICE_ACCOUNT_JSON", gcs_secret.credential.to_json()?);
 
-      let writer = GcsWriter { bucket };
+      let writer = GcsWriter::from(gcs_secret);
       writer
-        .write_stream(cloned_destination_path, receiver, job_and_notification)
+        .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Http {
-      endpoint: _,
-      method: _,
-      headers: _,
-      body: _,
-    } => {
+    Secret::Local(file_secret) => {
+      let writer = FileWriter::from(file_secret);
+      writer
+        .write_stream(destination_path, receiver, job_and_notification)
+        .await
+    }
+    Secret::Cursor(_) | Secret::Http(_) => {
       unimplemented!();
     }
-    Secret::Local {} => {
-      let writer = FileWriter {};
+    Secret::S3(s3_secret) => {
+      let writer = S3Writer::from((s3_secret, runtime));
       writer
-        .write_stream(cloned_destination_path, receiver, job_and_notification)
+        .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Cursor { content: _ } => {
-      unimplemented!();
-    }
-    Secret::S3 {
-      hostname,
-      access_key_id,
-      secret_access_key,
-      region,
-      bucket,
-    } => {
-      let writer = S3Writer {
-        hostname,
-        access_key_id,
-        secret_access_key,
-        region,
-        bucket,
-        runtime,
-      };
+    Secret::Sftp(sftp_secret) => {
+      let writer = SftpWriter::from(sftp_secret);
       writer
-        .write_stream(cloned_destination_path, receiver, job_and_notification)
-        .await
-    }
-    Secret::Sftp {
-      hostname,
-      port,
-      username,
-      password,
-      prefix,
-      known_host,
-    } => {
-      let writer = SftpWriter {
-        hostname,
-        port,
-        username,
-        password,
-        prefix,
-        known_host,
-      };
-      writer
-        .write_stream(cloned_destination_path, receiver, job_and_notification)
+        .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
   }
@@ -258,91 +209,40 @@ pub async fn start_writer(
 
 pub(crate) async fn start_reader(
   source_path: &str,
-  source_secret: Secret,
+  source_secret: &Secret,
   sender: channel::Sender<StreamData>,
   runtime: Arc<Mutex<Runtime>>,
   channel: &dyn ReaderNotification,
 ) -> Result<u64, Error> {
   match source_secret {
-    Secret::Ftp {
-      hostname,
-      port,
-      secure,
-      username,
-      password,
-      prefix,
-    } => {
-      let reader = FtpReader {
-        hostname,
-        port,
-        secure,
-        username,
-        password,
-        prefix,
-      };
+    Secret::Ftp(ftp_secret) => {
+      let reader = FtpReader::from(ftp_secret);
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Gcs { credential, bucket } => {
-      std::env::set_var("SERVICE_ACCOUNT_JSON", credential.to_json()?);
+    Secret::Gcs(gcs_secret) => {
+      std::env::set_var("SERVICE_ACCOUNT_JSON", gcs_secret.credential.to_json()?);
 
-      let reader = GcsReader { bucket };
+      let reader = GcsReader::from(gcs_secret);
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Http {
-      endpoint,
-      method,
-      headers,
-      body,
-    } => {
-      let reader = HttpReader {
-        endpoint,
-        method,
-        headers,
-        body,
-      };
+    Secret::Http(http_secret) => {
+      let reader = HttpReader::from(http_secret);
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Local {} => {
-      let reader = FileReader {};
+    Secret::Local(file_secret) => {
+      let reader = FileReader::from(file_secret);
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::S3 {
-      hostname,
-      access_key_id,
-      secret_access_key,
-      region,
-      bucket,
-    } => {
-      let reader = S3Reader {
-        hostname,
-        access_key_id,
-        secret_access_key,
-        region,
-        bucket,
-        runtime,
-      };
+    Secret::S3(s3_secret) => {
+      let reader = S3Reader::from((s3_secret, runtime));
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Sftp {
-      hostname,
-      port,
-      username,
-      password,
-      prefix,
-      known_host,
-    } => {
-      let reader = SftpReader {
-        hostname,
-        port,
-        username,
-        password,
-        prefix,
-        known_host,
-      };
+    Secret::Sftp(sftp_secret) => {
+      let reader = SftpReader::from(sftp_secret);
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Cursor { content } => {
-      let reader = CursorReader::from(content);
+    Secret::Cursor(cursor_secret) => {
+      let reader = CursorReader::from(cursor_secret);
       reader.read_stream(source_path, sender, channel).await
     }
   }

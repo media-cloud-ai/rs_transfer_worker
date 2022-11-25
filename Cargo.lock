@@ -2060,8 +2060,7 @@ dependencies = [
 [[package]]
 name = "rs_transfer"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e7c2352d43dcd2bf6105b4bb437b39162e9761e30474e365513e5e11ad77b8e"
+source = "git+https://gitlab.com/media-cloud-ai/libraries/rs_transfer.git?branch=feature/local_secret_prefix#73443dc9845bddba2cafc359b6cfa3d7361987ca"
 dependencies = [
  "async-std",
  "async-trait",
