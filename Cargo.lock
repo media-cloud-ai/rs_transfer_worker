@@ -2059,17 +2059,20 @@ dependencies = [
 
 [[package]]
 name = "rs_transfer"
-version = "1.0.0"
-source = "git+https://gitlab.com/media-cloud-ai/libraries/rs_transfer.git?branch=feature/local_secret_prefix#73443dc9845bddba2cafc359b6cfa3d7361987ca"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "417964a4da65d5165e6360cd15729986faf8d8da86375511d13cf24cb00a4f5a"
 dependencies = [
  "async-std",
  "async-trait",
  "bytes 0.5.6",
+ "chrono",
  "cloud-storage",
  "futures 0.3.24",
  "futures-util",
  "log",
  "mcai_ftp",
+ "regex",
  "reqwest",
  "rusoto_core",
  "rusoto_credential",
