@@ -52,7 +52,7 @@ pub fn upload_metadata(
 
       message::start_writer(
         &destination_path,
-        probe_secret,
+        &probe_secret,
         &probe_writer,
         receiver,
         s3_writer_runtime,
