@@ -6,9 +6,18 @@ use crate::{
 };
 use async_std::{channel, task};
 use mcai_worker_sdk::prelude::{info, JobResult, JobStatus, McaiChannel, MessageError};
-use rs_transfer::{reader::*, secret::Secret, writer::*, StreamData};
+use rs_transfer::{
+  endpoint::{
+    CursorEndpoint, FileEndpoint, FtpEndpoint, GcsEndpoint, HttpEndpoint, OneDriveEndpoint,
+    S3Endpoint, SftpEndpoint,
+  },
+  reader::*,
+  secret::Secret,
+  writer::*,
+  Error, StreamData,
+};
 use std::{
-  io::Error,
+  convert::TryFrom,
   sync::{Arc, Mutex},
   thread,
 };
@@ -134,11 +143,11 @@ pub fn process(
       parameters.source_secret.unwrap_or_default(),
       parameters.destination_secret.unwrap_or_default(),
     ) {
-      (Secret::Local(_), _) => Some((
+      (Secret::Local, _) => Some((
         parameters.source_path.clone(),
         parameters.destination_path.clone(),
       )),
-      (_, Secret::Local(_)) => Some((
+      (_, Secret::Local) => Some((
         parameters.destination_path.clone(),
         parameters.source_path.clone(),
       )),
@@ -170,7 +179,7 @@ pub async fn start_writer(
 ) -> Result<(), Error> {
   match destination_secret {
     Secret::Ftp(ftp_secret) => {
-      let writer = FtpWriter::from(ftp_secret);
+      let writer = FtpEndpoint::try_from(ftp_secret)?;
       writer
         .write_stream(destination_path, receiver, job_and_notification)
         .await
@@ -178,28 +187,28 @@ pub async fn start_writer(
     Secret::Gcs(gcs_secret) => {
       std::env::set_var("SERVICE_ACCOUNT_JSON", gcs_secret.credential.to_json()?);
 
-      let writer = GcsWriter::from(gcs_secret);
+      let writer = GcsEndpoint::try_from(gcs_secret)?;
       writer
         .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Local(file_secret) => {
-      let writer = FileWriter::from(file_secret);
+    Secret::Local => {
+      let writer = FileEndpoint::default();
       writer
         .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
-    Secret::Cursor(_) | Secret::Http(_) => {
+    Secret::Cursor(_) | Secret::Http(_) | Secret::OneDrive(_) => {
       unimplemented!();
     }
     Secret::S3(s3_secret) => {
-      let writer = S3Writer::from((s3_secret, runtime));
+      let writer = S3Endpoint::try_from((s3_secret, runtime))?;
       writer
         .write_stream(destination_path, receiver, job_and_notification)
         .await
     }
     Secret::Sftp(sftp_secret) => {
-      let writer = SftpWriter::from(sftp_secret);
+      let writer = SftpEndpoint::try_from(sftp_secret)?;
       writer
         .write_stream(destination_path, receiver, job_and_notification)
         .await
@@ -216,33 +225,37 @@ pub(crate) async fn start_reader(
 ) -> Result<u64, Error> {
   match source_secret {
     Secret::Ftp(ftp_secret) => {
-      let reader = FtpReader::from(ftp_secret);
+      let reader = FtpEndpoint::try_from(ftp_secret)?;
       reader.read_stream(source_path, sender, channel).await
     }
     Secret::Gcs(gcs_secret) => {
       std::env::set_var("SERVICE_ACCOUNT_JSON", gcs_secret.credential.to_json()?);
 
-      let reader = GcsReader::from(gcs_secret);
+      let reader = GcsEndpoint::try_from(gcs_secret)?;
       reader.read_stream(source_path, sender, channel).await
     }
     Secret::Http(http_secret) => {
-      let reader = HttpReader::from(http_secret);
+      let reader = HttpEndpoint::from(http_secret);
       reader.read_stream(source_path, sender, channel).await
     }
-    Secret::Local(file_secret) => {
-      let reader = FileReader::from(file_secret);
+    Secret::Local => {
+      let reader = FileEndpoint::default();
+      reader.read_stream(source_path, sender, channel).await
+    }
+    Secret::OneDrive(one_drive_secret) => {
+      let reader = OneDriveEndpoint::from(one_drive_secret);
       reader.read_stream(source_path, sender, channel).await
     }
     Secret::S3(s3_secret) => {
-      let reader = S3Reader::from((s3_secret, runtime));
+      let reader = S3Endpoint::try_from((s3_secret, runtime))?;
       reader.read_stream(source_path, sender, channel).await
     }
     Secret::Sftp(sftp_secret) => {
-      let reader = SftpReader::from(sftp_secret);
+      let reader = SftpEndpoint::try_from(sftp_secret)?;
       reader.read_stream(source_path, sender, channel).await
     }
     Secret::Cursor(cursor_secret) => {
-      let reader = CursorReader::from(cursor_secret);
+      let reader = CursorEndpoint::from(cursor_secret);
       reader.read_stream(source_path, sender, channel).await
     }
   }
