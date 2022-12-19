@@ -3,7 +3,8 @@ use async_std::{channel, task};
 use log::LevelFilter;
 use mcai_worker_sdk::{job::JobResult, prelude::JobStatus, MessageError};
 use rs_transfer::{
-  reader::{CursorReader, SimpleReader, StreamReader},
+  endpoint::CursorEndpoint,
+  reader::{SimpleReader, StreamReader},
   secret::Secret,
   writer::DummyWriteJob,
 };
@@ -63,7 +64,7 @@ pub fn upload_metadata(
 
   task::block_on(async {
     let probe_reader = SimpleReader {};
-    let cursor_reader = CursorReader::from(probe_info);
+    let cursor_reader = CursorEndpoint::from(probe_info);
     cursor_reader.read_stream("", sender, &probe_reader).await
   })
   .map_err(|_e| {
@@ -117,7 +118,7 @@ pub fn media_probe(local_path: &str, filename: &str, filesize: u64) -> Result<St
 fn probe_with_ffmpeg(path: &str) -> Option<Probe> {
   let mut probe = Probe::new(path);
 
-  probe.process(LevelFilter::Off).is_ok().then(|| probe)
+  probe.process(LevelFilter::Off).is_ok().then_some(probe)
 }
 
 #[test]
