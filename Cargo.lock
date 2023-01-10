@@ -2113,9 +2113,9 @@ dependencies = [
 
 [[package]]
 name = "rs_transfer"
-version = "4.1.0"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f427cd243cbc6d8807f618c44f03cdf406fdf8fb63d34318a448357c5bfc6b07"
+checksum = "d1c1e04cd78cbfe2d6e17697930a35a3f8e7967cb7ddc3ea5ffd12c74c5691c2"
 dependencies = [
  "async-std",
  "async-trait",
