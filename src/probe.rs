@@ -118,7 +118,11 @@ pub fn media_probe(local_path: &str, filename: &str, filesize: u64) -> Result<St
 fn probe_with_ffmpeg(path: &str) -> Option<Probe> {
   let mut probe = Probe::new(path);
 
-  probe.process(LevelFilter::Off).is_ok().then_some(probe)
+  if probe.process(LevelFilter::Off).is_ok() {
+    Some(probe)
+  } else {
+    None
+  }
 }
 
 #[test]
