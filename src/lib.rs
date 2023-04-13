@@ -3,7 +3,9 @@ pub mod message;
 mod probe;
 mod transfer_job;
 
-use mcai_worker_sdk::prelude::{JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version};
+use mcai_worker_sdk::prelude::{
+  info, JobResult, JsonSchema, McaiChannel, McaiWorker, Result, Version,
+};
 use rs_transfer::secret::Secret;
 use serde::Deserialize;
 
@@ -58,6 +60,10 @@ It support in output: Local, FTP, S3."#
     parameters: TransferWorkerParameters,
     job_result: JobResult,
   ) -> Result<JobResult> {
-    message::process(channel, parameters, job_result)
+    let job_id = &job_result.get_str_job_id();
+    info!(target: job_id, "START_JOB");
+    let result = message::process(channel, parameters, job_result);
+    info!(target: job_id, "END_JOB");
+    result
   }
 }
