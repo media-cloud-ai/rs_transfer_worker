@@ -15,7 +15,7 @@
 				"secure": false,
 				"username": "ftp_user",
 				"password": "ftp_password",
-				"prefix": "/data/"
+				"root_directory": "/data/"
 			}
 		},
 		{
