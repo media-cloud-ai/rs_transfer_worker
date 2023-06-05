@@ -48,7 +48,7 @@ publish:registry:probe:
   script:
     - if [ ! -f Cargo.lock ]; then cargo generate-lockfile; fi
     - export VERSION=`cargo pkgid | cut -d# -f2 | cut -d':' -f2`
-    - if [ "$VERSION" != "$CI_BUILD_TAG" ]; then exit -1; fi
+    - if [ "$VERSION" != "$CI_COMMIT_TAG" ]; then exit -1; fi
     - export IMAGE_TAG=`git describe --always --tags --first-parent`-probe
     - docker build -t $CONTAINER_REGISTRY/$CONTAINER_IMAGE_NAME:$IMAGE_TAG -f Dockerfile.probe .
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CONTAINER_REGISTRY
