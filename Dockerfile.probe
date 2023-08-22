@@ -1,32 +1,31 @@
-FROM rust:1.66-buster as builder
+FROM jrottenberg/ffmpeg:5.0-ubuntu2004 AS rust_builder
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 ADD . /src
 WORKDIR /src
 
 RUN apt-get update && \
     apt-get install -y \
-        clang \
         libssl-dev \
-        libavutil-dev \
-        libavdevice-dev \
-        libavfilter-dev \
-        libavformat-dev \
-        libavresample-dev \
-        libpostproc-dev \
-        libswresample-dev \
-        ffmpeg \
+        curl \
+        clang \
+        git \
+        pkg-config \
         && \
+    curl https://sh.rustup.rs -sSf | \
+    sh -s -- --default-toolchain stable -y && \
+    . $HOME/.cargo/env && \
     cargo build --verbose --release --features media_probe_and_upload && \
     cargo install --features media_probe_and_upload --path .
 
-FROM debian:buster
-COPY --from=builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
+FROM jrottenberg/ffmpeg:5.0-ubuntu2004
+COPY --from=rust_builder /usr/local/cargo/bin/rs_transfer_worker /usr/bin
 
 RUN apt update && \
     apt install -y \
         libssl1.1 \
-        ca-certificates \
-        ffmpeg
+        ca-certificates
 
 ENV AMQP_QUEUE job_transfer
 CMD rs_transfer_worker
