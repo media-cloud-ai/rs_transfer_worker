@@ -1,4 +1,4 @@
-FROM rust:1.66-buster as builder
+FROM rust:1.71.0-buster as builder
 
 ADD . /src
 WORKDIR /src
